@@ -8,8 +8,10 @@
 }
 
 .source-settings__title {
-    font-weight: 500;
+    font-weight: 600;
     padding: 6px 0;
+    font-size: var(--font-size-13);
+    color: var(--text-color);
 }
 
 /* The strip insets its rows 12px (template-strip.css, body.css) and the document's form stands in

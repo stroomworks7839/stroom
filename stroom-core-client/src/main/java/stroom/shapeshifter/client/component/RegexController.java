@@ -40,7 +40,10 @@ import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.List;
 import java.util.function.IntConsumer;
 
@@ -54,6 +57,9 @@ import java.util.function.IntConsumer;
 public class RegexController
         extends Controller
         implements MatchEditorController.MatchForm {
+
+    /// No group: none is pointed at or chosen. Not 0, which is `$0`, the whole match.
+    public static final int NO_GROUP = -1;
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
     // controller with no owner fails closed rather than editable.
@@ -70,9 +76,13 @@ public class RegexController
     private String templateId;
     private Runnable onExplode;
     private IntConsumer onGroupSelect;
+    private IntConsumer onGroupPoint = group -> {
+    };
     private ShapeshifterPatternRequest inspected;
     private ShapeshifterPatternInfo info;
-    private int selectedGroup;
+    // The group a click keeps shown alone, and the one the pointer is on, here or in the sample
+    private int selectedGroup = NO_GROUP;
+    private int pointedGroup = NO_GROUP;
 
     @Inject
     public RegexController(final EventBus eventBus, final Regex view, final RestFactory restFactory) {
@@ -87,6 +97,10 @@ public class RegexController
         view.setOnExplode(this::onExplode);
         view.setOnGroupName(this::onGroupName);
         view.setOnGroupSelect(this::onGroupSelect);
+        view.setOnGroupPoint(group -> {
+            pointGroup(group);
+            onGroupPoint.accept(group);
+        });
         this.restFactory = restFactory;
         this.commit = new DelayedUpdate(300, this::commit);
         onDispose(commit::reset);
@@ -115,7 +129,7 @@ public class RegexController
         if (!id.equals(templateId)) {
             // Typing not yet committed belongs to the template that was showing; drop it.
             commit.reset();
-            selectedGroup = 0;
+            selectedGroup = NO_GROUP;
         }
         this.templateId = id;
         final Template template = host.template(id);
@@ -152,9 +166,32 @@ public class RegexController
         }
     }
 
+    /// Told when the pointer comes onto a group, in the pattern or its row, with its index, and
+    /// when it leaves, with [#NO_GROUP].
+    ///
+    /// @param onGroupPoint The handler.
+    public void setOnGroupPoint(final IntConsumer onGroupPoint) {
+        this.onGroupPoint = onGroupPoint;
+    }
+
+    /// Shows the group the pointer is on, wherever it is, alone; or, with [#NO_GROUP], the group
+    /// a click keeps, if any, else every group.
+    ///
+    /// @param group The group.
+    public void pointGroup(final int group) {
+        pointedGroup = group;
+        light();
+    }
+
+    private void light() {
+        view.lightGroup(pointedGroup != NO_GROUP
+                ? pointedGroup
+                : selectedGroup);
+    }
+
     public void onGroupSelect(final int index) {
         selectedGroup = selectedGroup == index
-                ? 0
+                ? NO_GROUP
                 : index;
         final Template template = host.template(templateId);
         if (template != null && info != null) {
@@ -278,6 +315,7 @@ public class RegexController
                 ? List.of()
                 : info.getGroups();
         final List<GroupRowData> rows = new ArrayList<>();
+        rows.add(new GroupRowData(0, null, null, hue(0), selectedGroup == 0));
         for (final Group group : groups) {
             final CaptureBinding capture = captureOf(template, group.getIndex());
             rows.add(new GroupRowData(group.getIndex(), capture == null
@@ -287,51 +325,77 @@ public class RegexController
         }
         view.setGroups(rows);
         view.setPatternMap(patternMap(inspected.getPattern(), groups));
+        light();
     }
 
-    /// The pattern with each character coloured by its innermost capture group, regex101's
-    /// inner-and-outer reading; a click on a span selects its group.
+    /// The pattern with every group underlined in its colour, `$0` the whole of it (ruled
+    /// 2026-11-20): one span a group, nested as the groups are, so that a character shows the
+    /// rule of the innermost group it is in, and a group shown alone shows its whole extent, the
+    /// others' rules taken away from over it. A click on a span chooses its group.
     private SafeHtml patternMap(final String pattern, final List<Group> groups) {
+        final int length = pattern.length();
+        final List<int[]> spans = new ArrayList<>();
+        spans.add(new int[]{0, 0, length});
+        for (final Group group : groups) {
+            spans.add(new int[]{group.getIndex(), Math.min(Math.max(0, group.getStart()), length),
+                    Math.min(Math.max(0, group.getEnd()), length)});
+        }
+        // Outer first: by start, and of two that start together, the longer
+        spans.sort(Comparator.<int[]>comparingInt(span -> span[1]).thenComparingInt(span -> -span[2]));
         final SafeHtmlBuilder sb = new SafeHtmlBuilder();
-        int runGroup = 0;
-        int runStart = 0;
-        for (int i = 0; i <= pattern.length(); i++) {
-            int inner = 0;
-            int innerWidth = Integer.MAX_VALUE;
-            if (i < pattern.length()) {
-                for (final Group group : groups) {
-                    final int width = group.getEnd() - group.getStart();
-                    if (i >= group.getStart() && i < group.getEnd() && width < innerWidth) {
-                        inner = group.getIndex();
-                        innerWidth = width;
-                    }
+        final Deque<Integer> open = new ArrayDeque<>();
+        int at = 0;
+        int next = 0;
+        for (int i = 0; i <= length; i++) {
+            while (!open.isEmpty() && open.peek() <= i) {
+                sb.appendEscaped(pattern.substring(at, i)).appendHtmlConstant("</span>");
+                at = i;
+                open.pop();
+            }
+            while (next < spans.size() && spans.get(next)[1] == i) {
+                final int[] span = spans.get(next++);
+                sb.appendEscaped(pattern.substring(at, i));
+                at = i;
+                appendGroup(sb, span[0]);
+                // Never past the group it is inside
+                final int stop = Math.min(span[2], open.isEmpty()
+                        ? length
+                        : open.peek());
+                if (stop <= i) {
+                    sb.appendHtmlConstant("</span>");
+                } else {
+                    open.push(stop);
                 }
             }
-            if (i == pattern.length() || inner != runGroup) {
-                if (i > runStart) {
-                    appendRun(sb, pattern.substring(runStart, i), runGroup);
-                }
-                runGroup = inner;
-                runStart = i;
-            }
+        }
+        sb.appendEscaped(pattern.substring(at));
+        while (!open.isEmpty()) {
+            sb.appendHtmlConstant("</span>");
+            open.pop();
         }
         return sb.toSafeHtml();
     }
 
-    /// The attributes hold only numbers and an hsl() of our own making; the text is escaped. The
+    /// The attributes hold only numbers and a colour of our own making; the text is escaped. The
     /// group's colour goes in as a custom property, so the sheet decides what is done with it and
-    /// the selected run is a class rather than a background written here.
-    private void appendRun(final SafeHtmlBuilder sb, final String text, final int group) {
-        if (group == 0) {
-            sb.appendEscaped(text);
-            return;
-        }
-        sb.appendHtmlConstant("<span class=\"regex__group" + (group == selectedGroup
+    /// the chosen group is a class rather than a background written here.
+    private void appendGroup(final SafeHtmlBuilder sb, final int group) {
+        sb.appendHtmlConstant("<span class=\"regex__group" + (group == 0
+                ? " regex__group--whole"
+                : "") + (group == selectedGroup
                 ? " regex__group--selected"
-                : "") + "\" data-group=\"" + group + "\" style=\"--hue:" + Colours.hue(group)
-                              + "\" title=\"group $" + group + "\">")
-                .appendEscaped(text)
-                .appendHtmlConstant("</span>");
+                : "") + "\" data-group=\"" + group + "\" style=\"--hue:" + Colours.safe(hue(group))
+                              + "\" title=\"" + (group == 0
+                ? "$0, the whole match"
+                : "group $" + group) + "\">");
+    }
+
+    // A group's colour: the template's own for $0, the whole match, as its matches are drawn in
+    // the sample, and a generated hue for each capturing group
+    private String hue(final int group) {
+        return group == 0
+                ? host.colour(templateId)
+                : Colours.hue(group);
     }
 
     // One place that says what read-only means here, called when the context changes and

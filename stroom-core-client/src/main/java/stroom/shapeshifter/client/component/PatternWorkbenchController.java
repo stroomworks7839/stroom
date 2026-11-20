@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.AlertEvent;
 import stroom.shapeshifter.client.model.ProjectHost;
+import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.svg.shared.SvgImage;
@@ -33,9 +34,11 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /// The pattern workbench (design 18 §5.6, design 44): an in-place mode of the Design tab, not a
-/// dialog and not full-screen. Its subject is a template's match; the sample to try it against
-/// is on the left, the match editor — the kind and its form — on the right, and guard and limits
-/// sit beneath, mechanism-independent, belonging to the workbench itself. There is no Apply or
+/// dialog and not full-screen. Its subject is a template's match. What is written is on the
+/// left: the match editor — the kind and its form — and under it the guard and limits,
+/// mechanism-independent, folded away when there are none. The data is on the right, where the
+/// Design tab has its input: the sample to try the match against, what it found, and each
+/// match's groups (ruled 2026-11-20). There is no Apply or
 /// Cancel — every field commits as it changes, as everywhere else — so closing, or retargeting to
 /// another template, never has anything to lose.
 public class PatternWorkbenchController extends Controller {
@@ -53,6 +56,8 @@ public class PatternWorkbenchController extends Controller {
     private boolean readOnly = true;
     // The part that is the subject, or null when it is a template
     private String part;
+    // The template that is the subject, or null when it is a part
+    private String templateId;
     private BiConsumer<String, String> onRenamePart = (from, to) -> {
     };
 
@@ -69,7 +74,12 @@ public class PatternWorkbenchController extends Controller {
         this.matchEditor = own(matchEditor);
         this.guardAndLimits = own(guardAndLimits);
         matchEditor.setOnGroupSelect(sample::isolate);
+        // A group pointed at in the pattern or its row is shown alone in the sample, and one
+        // pointed at in the sample alone in the pattern and its row (ruled 2026-11-20)
+        matchEditor.setOnGroupPoint(sample::pointGroup);
+        sample.setOnGroupPoint(matchEditor::pointGroup);
         matchEditor.setOnLabelSelect(sample::isolate);
+        guardAndLimits.setOnChange(this::describeGuardAndLimits);
         watch(Contexts.READ_ONLY, locked -> {
             this.readOnly = locked;
             if (part != null) {
@@ -107,6 +117,9 @@ public class PatternWorkbenchController extends Controller {
     /// Closed: the match editor's drafts of the kinds not chosen go with the session.
     public void closed() {
         matchEditor.forget();
+        // Opened again, the template is shown afresh: its guard and limits open if it has any
+        templateId = null;
+        view.forgetGuardFold();
     }
 
     public void setHost(final ProjectHost host) {
@@ -133,6 +146,24 @@ public class PatternWorkbenchController extends Controller {
         matchEditor.setTemplate(id);
         guardAndLimits.setTemplate(id);
         sample.setTemplate(id);
+        // Folded or opened for a template just shown, and not as it is edited: deleting the last
+        // clause must not fold the clauses away under the pointer
+        final boolean shown = !id.equals(templateId);
+        templateId = id;
+        describeGuardAndLimits();
+        if (shown && template != null) {
+            view.foldGuardAndLimits(Templates.unguardedAndUnlimited(template));
+        }
+    }
+
+    // What the template's guard and limits hold, on their title bar
+    private void describeGuardAndLimits() {
+        final Template template = templateId == null
+                ? null
+                : host.template(templateId);
+        if (template != null) {
+            view.describeGuardAndLimits(Templates.describeGuardAndLimits(template));
+        }
     }
 
     /// Opens the part's name to be changed, where it reads.
@@ -184,6 +215,7 @@ public class PatternWorkbenchController extends Controller {
             view.getSubject().close();
         }
         part = name;
+        templateId = null;
         view.setSubject("part", name, !readOnly);
         view.showGuardAndLimits(false);
         matchEditor.setPattern(name);

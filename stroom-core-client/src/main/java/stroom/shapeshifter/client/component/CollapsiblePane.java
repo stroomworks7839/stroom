@@ -16,13 +16,10 @@
 
 package stroom.shapeshifter.client.component;
 
-import stroom.widget.button.client.LinkButton;
-
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Composite;
-import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HasWidgets;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
@@ -50,12 +47,8 @@ public class CollapsiblePane extends Composite implements HasWidgets {
     /// The height of the title bar, which is the height of the pane when it is collapsed.
     public static final int HEAD_PX = 26;
 
-    private static final String COLLAPSED = "collapsible-pane--collapsed";
-
     @UiField
-    FlowPanel root;
-    @UiField
-    LinkButton toggle;
+    DisclosureButton toggle;
     @UiField
     SimplePanel content;
 
@@ -80,6 +73,12 @@ public class CollapsiblePane extends Composite implements HasWidgets {
         describe();
     }
 
+    /// @param note What to say after the name on the title bar, more quietly, so that a folded
+    ///             pane still says what it holds; null for nothing.
+    public void setNote(final String note) {
+        toggle.setNote(note);
+    }
+
     /// @param onToggle Told when the user collapses or expands the pane, with whether it is now
     ///                 collapsed.
     public void setOnToggle(final Consumer<Boolean> onToggle) {
@@ -98,13 +97,13 @@ public class CollapsiblePane extends Composite implements HasWidgets {
     public void setCollapsed(final boolean collapsed) {
         this.collapsed = collapsed;
         content.setVisible(!collapsed);
-        root.setStyleName(COLLAPSED, collapsed);
+        toggle.setExpanded(!collapsed);
         describe();
     }
 
-    // What the bar does next, for the pointer; and whether the pane is open, for a screen reader
+    // What the bar does next, for the pointer. Whether the pane is open, for a screen reader, is
+    // the button's own (DisclosureButton).
     private void describe() {
-        toggle.setAriaExpanded(!collapsed);
         toggle.setTitle((collapsed
                 ? "Show the "
                 : "Hide the ") + heading + " pane");

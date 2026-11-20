@@ -92,9 +92,6 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         if (item.isContainer()) {
             label.addStyleName("pattern-tree__node-label--container");
         }
-        if (item.isLabelled()) {
-            label.addStyleName("pattern-tree__node-label--labelled");
-        }
         label.setTitle(item.getLabel());
 
         final FlowPanel inner = new FlowPanel();

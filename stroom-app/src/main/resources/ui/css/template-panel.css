@@ -9,43 +9,60 @@
 
 /* The template panel's list. */
 .template-panel__mode-head {
-    font-size: 11px;
-    color: var(--ss-muted);
+    font-size: var(--font-size-12);
+    color: var(--text-color--muted);
     padding: 8px 10px 2px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-/* A panel section: the list's own headings, two of which are destinations (design 44 §5m). */
+/* A panel section: the list's own headings, Settings, Data, Templates and Patterns (design 44
+   §5m). Four of one height, each a band of its own, in sentence case and the panel's one font
+   (ruled 2026-11-20). Settings and Data are destinations, rows drawn as headings; Templates and
+   Patterns fold what they hold (DisclosureButton). The column centres a row's line, whose
+   wrapper has no class of its own; a fold lays its arrow and text out in a row instead. */
 .template-panel__section {
-    color: var(--ss-muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .06em;
+    box-sizing: border-box;
+    width: 100%;
+    height: 30px;
+    padding: 0 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-size: var(--font-size-13);
     font-weight: 600;
-    padding: 10px 10px 3px;
+    color: var(--text-color);
+    background-color: rgba(127, 127, 127, .08);
+    border-top: 1px solid rgba(127, 127, 127, .15);
+    cursor: pointer;
 }
 
-.template-panel__section:first-child {
-    padding-top: 6px;
+.template-panel__section:hover {
+    background-color: var(--row__background-color--hovered);
 }
 
 /* A section that is a destination is a row too, so it can be the selected one. This sheet loads
-   after template-row.css and would otherwise keep the muted heading colour over the selection
-   band, which is too dark for it. Written as both classes, as the strip's title is. */
+   after template-row.css, so the band above would otherwise cover the selection's: written as
+   both classes, as the strip's title is. */
 .template-panel__section.template-row--selected {
+    background-color: var(--row__background-color--selected);
     color: var(--text-color--selected);
 }
 
-.template-panel__section--link {
-    cursor: pointer;
-    /* A row, so it has a hover and a selection band: give them something to fill. */
-    padding-bottom: 5px;
+.template-panel__section.template-row--selected:hover {
+    background-color: var(--row__background-color--selected--hovered);
 }
 
-.template-panel__section--link:hover {
-    color: var(--text-color);
+.template-panel__section--fold {
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+/* A folded section holding the selection: the selection's colour down its edge, since the row
+   itself is out of sight. */
+.template-panel__section--holds-selection {
+    box-shadow: inset 3px 0 0 var(--row__background-color--selected);
 }
 
 /* A mode's heading, when it carries a note: the name, then what is true of the mode. The head
@@ -59,19 +76,15 @@
     flex-wrap: wrap;
 }
 
-/* The size the heading has always had, said on the name itself: the heading is a line now
-   whether or not it carries a note, and the name is a label in it. */
+/* The heading is a line whether or not it carries a note, and the name is a label in it. */
 .template-panel__mode-name {
     flex: none;
-    font-size: 11px;
 }
 
-/* Quieter than the heading it follows, and italic so it reads as a remark rather than a name.
+/* As quiet as the heading it follows, and plain: italic says a list is empty (placeholder.css).
    Given the whole width when it wraps, so the sentence arrives whole. */
 .template-panel__mode-note {
     flex-basis: 100%;
-    font-style: italic;
-    opacity: .75;
 }
 
 /* The add links: `+ template` under a mode's templates and `+ mode` under the modes, each on a
@@ -80,9 +93,11 @@
     padding: 1px 10px 3px;
 }
 
-/* The modes' own, set off from the last mode's list above it. */
+/* The modes' own, set off from the last mode's list above it, and from the Patterns heading
+   below it: the link is shorter than a touch target, so it needs the room around it. */
 .template-panel__add--mode {
     padding-top: 9px;
+    padding-bottom: 8px;
 }
 
 /* A mode's heading, when it is the way to the mode: a row to press, and to be the selected
@@ -109,8 +124,4 @@
    row's count is. */
 .template-panel__mode-row--selected .template-panel__mode-head {
     color: var(--text-color--selected);
-}
-
-.template-panel__mode-row--selected .template-panel__mode-note {
-    opacity: 1;
 }

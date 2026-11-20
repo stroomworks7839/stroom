@@ -6,8 +6,10 @@
     <g:FlowPanel ui:field="row" styleName="group-row">
         <t:Label ui:field="chip" styleName="chip chip--editable" title="Isolate this group in the pattern map"/>
         <t:Label ui:field="index" styleName="mono group-row--clickable"/>
-        <t:Label styleName="group-row__arrow" text="→"/>
+        <t:Label ui:field="arrow" styleName="group-row__arrow" text="→"/>
         <form:TextBox ui:field="name" styleName="edit-form__input group-row__capture-name"
                    title="The declaration this group is captured into; blank for none"/>
+        <!-- $0, the whole match, is captured into nothing: it says what it is instead -->
+        <t:Label ui:field="whole" styleName="group-row__whole" text="whole match" visible="false"/>
     </g:FlowPanel>
 </ui:UiBinder>

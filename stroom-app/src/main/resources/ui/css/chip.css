@@ -13,7 +13,7 @@
 }
 
 .chip--outline {
-    border: 1px solid var(--ss-muted);
+    border: 1px solid var(--text-color--muted);
     box-sizing: border-box;
 }
 

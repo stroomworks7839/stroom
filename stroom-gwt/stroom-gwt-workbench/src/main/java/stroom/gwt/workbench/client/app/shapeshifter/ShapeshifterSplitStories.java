@@ -279,13 +279,25 @@ public final class ShapeshifterSplitStories {
     }
 
     /// §6.4 step 7. The limit that makes it the header and not every record: one match. Set in
-    /// the workbench, which is where the limits are.
+    /// the workbench, which is where the limits are, folded away under their title bar while
+    /// the template has none (ruled 2026-11-20).
     private static void onlyTheFirst(final Play play, final Play screen) {
         play.click(ShapeshifterEditorStories.workbenchButton(play));
+        play.waitFor(() -> play.expect(guardAndLimits(play, "no guard · no limits"))
+                .toHaveAttribute("aria-expanded", "false"));
+        play.click(guardAndLimits(play, "no guard · no limits"));
         play.waitFor(() -> play.expect(play.getByLabelText("Match at most")).toBeVisible());
         play.type(play.getByLabelText("Match at most"), "1");
         play.keyboard("{Tab}");
+        // The title bar says what they hold, so it is read when they are folded away again
+        play.waitFor(() -> play.expect(guardAndLimits(play, "no guard · max 1")).toBeVisible());
         closeWorkbench(play);
+    }
+
+    // The workbench's guard and limits, by their title bar, which says what they hold (as a
+    // pattern, but none of what it says is special in one)
+    static Query guardAndLimits(final Play play, final String holds) {
+        return play.getByRole("button", TextMatch.regex("^Guard and limits " + holds + "$"));
     }
 
     /// §6.4 step 8. The header's columns: a mode added for them, and the header record's card

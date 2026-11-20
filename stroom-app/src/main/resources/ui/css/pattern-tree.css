@@ -14,10 +14,8 @@
 
 /* Whose a library entry is: the project's parts are named beside the standard ones. */
 .pattern-tree__library-whose {
-    color: var(--ss-muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .05em;
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
     padding-left: 8px;
 }
 
@@ -55,6 +53,8 @@
     position: relative;
 }
 
+/* A box's words keep a pixel size, as the box does: the layout sizes it from their length
+   (PatternItemRenderer). A leaf's are what it matches, as typed. */
 .pattern-tree__node-label {
     white-space: nowrap;
     overflow: hidden;
@@ -66,12 +66,4 @@
 /* A combinator is the shape of the composition rather than what it matches: its word, plain. */
 .pattern-tree__node-label--container {
     font-family: inherit;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: .05em;
-}
-
-/* A capture: the node the body reads by name. */
-.pattern-tree__node-label--labelled {
-    font-weight: 600;
 }

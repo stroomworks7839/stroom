@@ -1,7 +1,22 @@
 /*
- * The Shapeshifter document's Design tab (design 43), and the custom properties its panes
- * inherit. Colour only where it compares: the template swatches in the panel, a label's tint
- * in the pattern tree; text is text.
+ * The Shapeshifter document's Design tab (design 43). Colour only where it compares: the
+ * template swatches in the panel, a label's tint in the pattern tree; text is text.
+ *
+ * Its text has six styles, and every sheet of the tab draws its text in one of them (design 44
+ * §5m, ruled 2026-11-20). Each is Stroom's own where Stroom has one, and every size is one of
+ * Stroom's, so the tab follows the user's font size as the rest of Stroom does:
+ *
+ *   Heading  --font-size-13, 600, --text-color: a panel section, the template's name, a title.
+ *   Label    Stroom's form label (form-label.css): --font-size-13, 600,
+ *            --form-group__label-color. Every key, pane title and card kind.
+ *   Body     --font-size-13, 400: rows, cards, names. A name is body text wherever it is.
+ *   Meta     --font-size-12, 400, --text-color--muted: notes, counts, descriptions, hints.
+ *            Italic only for a list or field with nothing in it (placeholder.css).
+ *   Code     --monospace-font-family, --font-size-13: pattern and data text, as typed.
+ *   Error    Meta's size in --bootstrap-error.
+ *
+ * The pattern tree's boxes are laid out in pixels (PatternItemRenderer), so their words keep
+ * a pixel size.
  */
 .shapeshifter-design__banner {
     padding: 4px 8px;
@@ -11,17 +26,4 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* ------------------------------------------------------------------------------------------
-   The mockup's own surfaces (design 43 §4.1), lifted from 18b-event-xml-trace-editor.html
-   and written against Stroom's theme variables as the mockup was. Named BEM, a block to a
-   sheet, as UI-GUIDE.md asks; the custom properties keep their --ss- prefix.
-   ------------------------------------------------------------------------------------------ */
-.shapeshifter-design {
-    --ss-muted: #6f7a80;
-}
-
-.stroom-theme-dark .shapeshifter-design {
-    --ss-muted: #9aa4a8;
 }

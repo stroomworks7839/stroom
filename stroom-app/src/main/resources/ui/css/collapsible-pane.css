@@ -17,37 +17,19 @@
     height: 26px;
 }
 
-/* The whole bar is the target. Its name is in the quiet capitals every pane's title has. */
+/* The whole bar is the target, a DisclosureButton, whose arrow says which way it is. Its name is
+   a label, as every pane's title is (ruled 2026-11-20: no capitals). */
 .collapsible-pane__toggle {
     flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 6px;
     padding: 0 10px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    text-align: left;
-    color: var(--ss-muted);
+    font-size: var(--font-size-13);
+    font-weight: 600;
+    color: var(--form-group__label-color);
 }
 
-/* It is a title that can be pressed, not a link: it lifts, and is not underlined. */
+/* It lifts on hover. */
 .collapsible-pane__toggle:hover {
     color: var(--text-color);
-    text-decoration: none;
-}
-
-/* Which way it is: pointing down over what is shown, and along at what is folded away. */
-.collapsible-pane__toggle::before {
-    content: "\25BE";
-    display: inline-block;
-    width: 8px;
-    font-size: 12px;
-    letter-spacing: 0;
-}
-
-.collapsible-pane--collapsed .collapsible-pane__toggle::before {
-    content: "\25B8";
 }
 
 .collapsible-pane__content {

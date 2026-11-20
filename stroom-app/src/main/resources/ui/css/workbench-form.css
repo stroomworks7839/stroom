@@ -8,7 +8,8 @@
     border-bottom: 1px solid var(--border-color);
 }
 
-/* The workbench's right column: sections with quiet uppercase headings (mockup #wbRight). */
+/* The workbench's right column: sections with sentence-case headings, each a label (mockup #wbRight;
+   no capitals, ruled 2026-11-20). */
 .workbench-form__right {
     min-width: 0;
 }
@@ -19,20 +20,20 @@
 
 .workbench-form__heading {
     margin: 0 0 4px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--ss-muted);
+    font-size: var(--font-size-13);
+    color: var(--form-group__label-color);
+    font-weight: 600;
 }
 
 .workbench-form__heading-note {
-    text-transform: none;
-    letter-spacing: 0;
+    font-weight: 400;
+    font-size: var(--font-size-12);
+    color: var(--text-color--muted);
 }
 
 .workbench-form__pattern {
     font-family: var(--monospace-font-family);
-    font-size: 13px;
+    font-size: var(--font-size-13);
     padding: 4px 8px;
     border: 1px solid var(--control__border-color);
     border-radius: 5px;
@@ -54,20 +55,19 @@
 
 .workbench-form__error {
     color: var(--bootstrap-error);
-    font-size: 12.5px;
+    font-size: var(--font-size-12);
     padding-top: 4px;
     min-height: 18px;
     white-space: pre-wrap;
 }
 
 .workbench-form__lint {
-    color: var(--ss-muted);
-    font-size: 12px;
-    font-style: italic;
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
 }
 
 .workbench-form__explain {
-    font-style: normal;
     font-family: var(--monospace-font-family);
     white-space: pre-wrap;
+    font-size: var(--font-size-13);
 }

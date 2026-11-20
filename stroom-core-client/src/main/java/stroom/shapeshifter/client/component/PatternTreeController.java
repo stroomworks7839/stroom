@@ -566,8 +566,7 @@ public class PatternTreeController
                          final String parentPath) {
         final String here = PatternNodes.path(path);
         final List<PatternNode> children = PatternNodes.children(node);
-        items.add(new PatternItem(here, parentPath, Templates.describe(node), !children.isEmpty(),
-                node instanceof PatternNode.Labelled));
+        items.add(new PatternItem(here, parentPath, Templates.describe(node), !children.isEmpty()));
         for (int i = 0; i < children.size(); i++) {
             collect(items, children.get(i), PatternNodes.child(path, i), here);
         }

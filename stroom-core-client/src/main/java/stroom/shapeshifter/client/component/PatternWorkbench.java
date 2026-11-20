@@ -44,12 +44,24 @@ public class PatternWorkbench extends Component {
     @UiField
     SimplePanel editor;
     @UiField
-    SplitPane layout;
+    SplitPane match;
+    @UiField
+    CollapsiblePane guardPane;
     @UiField
     SimplePanel guardAndLimits;
 
+    private final FoldingPanes matchPanes;
+    // Whether the user has folded or opened the guard and limits while the workbench is open:
+    // until then they are open when there is something in them, and after it they stay as the
+    // user left them
+    private Boolean guardFolded;
+
     public PatternWorkbench() {
         initWidget(BINDER.createAndBindUi(this));
+        matchPanes = new FoldingPanes(match)
+                .add(editor, "*")
+                .add(guardPane, "210px");
+        matchPanes.setOnFold(pane -> guardFolded = pane.isCollapsed());
     }
 
 
@@ -86,8 +98,32 @@ public class PatternWorkbench extends Component {
         guardAndLimits.setWidget(view.asWidget());
     }
 
+    /// @param shown Whether the subject has a guard and limits: a template has, a part has not.
     public void showGuardAndLimits(final boolean shown) {
-        layout.setPaneHidden(guardAndLimits, !shown);
+        match.setPaneHidden(guardPane, !shown);
+    }
+
+    /// @param summary What the guard and limits hold, said on their title bar so that it is
+    ///                read when they are folded away, e.g. `no guard · max 1`.
+    public void describeGuardAndLimits(final String summary) {
+        guardPane.setNote(summary);
+    }
+
+    /// Forgets whether the user folded or opened the guard and limits, as the workbench closes:
+    /// opened again, they are open when there is something in them.
+    public void forgetGuardFold() {
+        guardFolded = null;
+    }
+
+    /// Folds the guard and limits away when they hold nothing and opens them when they hold
+    /// something, for a subject just shown — unless the user has folded or opened them, which
+    /// is kept.
+    ///
+    /// @param empty Whether they hold nothing: no guard and no limits.
+    public void foldGuardAndLimits(final boolean empty) {
+        matchPanes.fold(guardPane, guardFolded == null
+                ? empty
+                : guardFolded);
     }
 
     interface Binder extends UiBinder<Widget, PatternWorkbench> {

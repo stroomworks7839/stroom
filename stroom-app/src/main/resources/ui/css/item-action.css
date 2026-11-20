@@ -3,9 +3,9 @@
  * the delete among them. Not row-action, which is the data grid's.
  */
 .item-action {
-    color: var(--ss-muted);
+    color: var(--text-color--muted);
     padding: 0 3px;
-    font-size: 12px;
+    font-size: var(--font-size-12);
     cursor: pointer;
 }
 

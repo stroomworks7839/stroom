@@ -9,7 +9,7 @@
              than five small glyphs on every row (the owner, 2026-11-18). Add, remove, up and
              down, in the order the template panel's has them. -->
         <g:FlowPanel styleName="body__head">
-            <t:Label styleName="key-label body__title" text="body"/>
+            <t:Label styleName="key-label body__title" text="Body"/>
             <b:Toolbar ui:field="toolbar" name="Instruction actions" addStyleNames="body__actions">
                 <b:ToolbarButton ui:field="add"/>
                 <b:ToolbarButton ui:field="remove"/>

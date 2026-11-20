@@ -358,15 +358,19 @@ public class TemplatePanelController extends Controller {
     public void refresh() {
         final Project project = host.getProject();
         final List<TemplateRowData> rows = new ArrayList<>();
-        // Three sections, in the order the run uses them: what the project is, what it runs
-        // over, and what it runs (design 44 §5m).
+        // Four sections: three in the order the run uses them — what the project is, what it
+        // runs over, and what it runs (design 44 §5m) — then the parts the templates share. The
+        // two that hold rows say how many, which is what they say when folded (ruled
+        // 2026-11-20).
         rows.add(TemplateRowData.section(SETTINGS_ROW, "Settings", null));
         // The section says what is chosen, so the sample needs no row of its own
         // (design 18 §5.7, design 44 §5a, §5m).
         rows.add(TemplateRowData.section(SampleSource.rowId(), "Data", host.getSampleSource() == null
                 ? "none"
                 : host.getSampleSource().getLabel()));
-        rows.add(TemplateRowData.section(null, "Templates", null));
+        rows.add(TemplateRowData.section(null, "Templates", project == null
+                ? null
+                : howMany(project.templates().size(), "template")));
         boolean survives = selected == null || SampleSource.isRow(selected);
         if (project != null) {
             // Grouped by mode - the root group first, then modes as they first appear - and in
@@ -466,10 +470,18 @@ public class TemplatePanelController extends Controller {
                 rows.add(TemplateRowData.fresh(NEW_MODE_ROW, "+ mode", null,
                         "Click to add a mode, and its first template"));
             }
-            // The library's parts (design 44 §3): each with how many trees name it.
+        }
+        // The library's parts (design 44 §3), a section of their own: each with how many trees
+        // name it.
+        rows.add(TemplateRowData.section(null, "Patterns", project == null
+                ? null
+                : project.patterns().isEmpty()
+                        ? "none"
+                        : howMany(project.patterns().size(), "pattern")));
+        if (project != null) {
             for (final String name : project.patterns().keySet()) {
                 final int uses = Patterns.uses(project, name);
-                rows.add(new TemplateRowData(Patterns.rowId(name), name, "patterns", "transparent", uses == 0
+                rows.add(new TemplateRowData(Patterns.rowId(name), name, null, "transparent", uses == 0
                         ? "unused"
                         : "used by " + uses, uses == 0));
                 survives |= Patterns.rowId(name).equals(selected);
@@ -516,6 +528,13 @@ public class TemplatePanelController extends Controller {
     /// The row's right-hand word: the kind of match until there is a trace; then the match count,
     /// or how many places were tried for none (design 18 §5.5 - a zero is a fact about the
     /// sample, not a blank).
+    // How many of a thing a section holds: `1 template`, `3 templates`
+    private static String howMany(final int count, final String noun) {
+        return count + " " + noun + (count == 1
+                ? ""
+                : "s");
+    }
+
     private static String count(final TraceModel trace, final Template template) {
         final Timing timing = trace == null
                 ? null

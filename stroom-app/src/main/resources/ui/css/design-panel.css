@@ -1,6 +1,6 @@
 /*
  * The shell each pane of the Design tab sits in (ContentPane, OutputPane, TemplatePanel,
- * VariablesPane): a quiet uppercase title over a scrolling body.
+ * VariablesPane): a title, a label in sentence case (ruled 2026-11-20), over a scrolling body.
  */
 .design-panel {
     background-color: var(--page__background-color);
@@ -12,12 +12,11 @@
 
 .design-panel__title {
     flex: none;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: var(--ss-muted);
+    font-size: var(--font-size-13);
+    color: var(--form-group__label-color);
     margin: 0;
     padding: 7px 10px 5px;
+    font-weight: 600;
 }
 
 .design-panel__body {

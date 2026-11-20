@@ -11,22 +11,23 @@
 }
 
 .name-edit__name {
-    font-family: var(--monospace-font-family);
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
+    font-size: var(--font-size-13);
+    color: var(--text-color);
 }
 
 .name-edit__name--editable {
     cursor: pointer;
 }
 
-/* The field the name becomes: its own font, and no taller than the title line it stands in. */
+/* The field the name becomes: the title's font, and no taller than the title line it stands in. */
 .name-edit .name-edit__field {
     width: 18ch;
     padding-top: 1px;
     padding-bottom: 1px;
-    font-family: var(--monospace-font-family);
-    font-weight: 700;
+    font-weight: 600;
+    font-size: var(--font-size-13);
 }
 
 .name-edit__actions {

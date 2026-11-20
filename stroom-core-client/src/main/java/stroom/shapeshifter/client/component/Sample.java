@@ -19,65 +19,113 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.Mark;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
+import stroom.widget.layout.client.SplitPane;
 import stroom.widget.text.client.Html;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
+import com.google.gwt.dom.client.NodeList;
+import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.ui.FocusPanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
+import java.util.function.IntConsumer;
 
 public class Sample extends Component {
 
     private Runnable onSample = () -> {
+    };
+    private IntConsumer onGroupPoint = group -> {
     };
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
 
     @UiField
-    TextArea sample;
+    SplitPane column;
     @UiField
-    Label summary;
+    CollapsiblePane samplePane;
+    @UiField
+    CollapsiblePane detailPane;
+    @UiField
+    FocusPanel read;
+    @UiField
+    TextArea sample;
     @UiField
     Html matches;
     @UiField
+    Label nothing;
+    @UiField
     Html table;
     @UiField
-    Label nothing;
+    Label noDetail;
 
     public Sample() {
         initWidget(BINDER.createAndBindUi(this));
+        new FoldingPanes(column)
+                .add(samplePane, "*")
+                .add(detailPane, "30%");
         sample.addKeyUpHandler(event -> onSampleKey(event));
         sample.addValueChangeHandler(event -> onSampleChange(event));
-        // Pointing at a match or a group lights it and quietens the rest, as it does in the
-        // panes (design 18 §5.12.3). Lit from here rather than from a host: the workbench is
-        // editing a pattern with no run behind it, so there is no cursor and no second surface
-        // to tell — the pane answers its own pointer, which is the whole of what it can mean
-        // here. A delegated handler rather than `:hover`, for the reasons mark.css records.
-        matches.addMouseOverHandler(event -> {
-            final EventTarget target = event.getNativeEvent().getEventTarget();
-            Marks.light(matches.getElement(), Element.is(target)
-                    ? Marks.hotOf(matches.getElement(), Element.as(target))
-                    : null);
+        // The sample marked, at rest, opens to be edited: clicked, or Enter on it. Leaving the
+        // field, or Escape in it, marks it again; Escape goes no further, as it would close the
+        // workbench.
+        read.getElement().setAttribute("role", "region");
+        read.getElement().setAttribute("aria-label", "Sample, its matches marked: Enter to edit it");
+        read.setTitle("The cursor's frame to start with. Click to edit it: this never runs the document.");
+        read.addClickHandler(event -> edit());
+        read.addKeyDownHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
+                event.preventDefault();
+                edit();
+            }
         });
+        sample.addBlurHandler(event -> read());
+        sample.addKeyDownHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+                event.preventDefault();
+                event.stopPropagation();
+                read();
+                read.setFocus(true);
+            }
+        });
+        // Pointing at a group's rule shows that group alone, in every match, and says which it is
+        // so that the pattern and the groups list show it too (ruled 2026-11-20): by group rather
+        // than by the one span, as the Design tab's panes light, because here a group is what the
+        // author is asking about. A delegated handler rather than `:hover`, for the reasons
+        // mark.css records.
+        matches.addMouseOverHandler(event -> onGroupPoint.accept(groupAt(event.getNativeEvent().getEventTarget())));
         matches.addMouseOutHandler(event -> {
             // Leaving one span for another inside the block is not leaving the block.
             final EventTarget to = event.getRelatedTarget();
             if (to == null || !Element.is(to) || !matches.getElement().isOrHasChild(Element.as(to))) {
-                Marks.light(matches.getElement(), null);
+                onGroupPoint.accept(RegexController.NO_GROUP);
             }
         });
         showNothing("");
     }
 
+
+    // The field in place of the marked sample, with the keyboard in it
+    private void edit() {
+        read.setVisible(false);
+        sample.setVisible(true);
+        sample.setFocus(true);
+    }
+
+    // The marked sample in place of the field
+    private void read() {
+        sample.setVisible(false);
+        read.setVisible(true);
+    }
 
     private void onSampleKey(final KeyUpEvent e) {
         changed();
@@ -99,8 +147,14 @@ public class Sample extends Component {
         sample.setText(text);
     }
 
+    /// Shows what the match found in the sample.
+    ///
+    /// @param text  The sample.
+    /// @param marks Where the matches and their groups are in it.
+    /// @param rows  Each match's place and groups.
+    /// @param line  How many matched and where it was tried, said on the matches' title bar.
     public void showMatches(final String text, final List<Mark> marks, final List<Row> rows, final String line) {
-        summary.setText(line);
+        samplePane.setNote(line);
         matches.setHTML(Marks.render(text, marks));
         Marks.rest(matches.getElement());
         final SafeHtmlBuilder html = new SafeHtmlBuilder();
@@ -134,20 +188,98 @@ public class Sample extends Component {
             html.appendHtmlConstant("</table>");
         }
         table.setHTML(html.toSafeHtml());
-        nothing.setVisible(false);
-        summary.setVisible(true);
-        matches.setVisible(true);
+        showUnmarked(text);
         table.setVisible(!rows.isEmpty());
+        noDetail.setText("Nothing matched.");
+        noDetail.setVisible(rows.isEmpty());
     }
 
+    /// Shows that there is nothing to try, and why: the sample unmarked, and the reason under it.
+    ///
+    /// @param why What to say under the sample, or nothing.
     public void showNothing(final String why) {
-        nothing.setText(why);
-        nothing.setVisible(!why.isEmpty());
-        summary.setVisible(false);
-        matches.setVisible(false);
+        samplePane.setNote(null);
+        matches.setHTML(Marks.render(sample.getText(), List.of()));
+        showUnmarked(sample.getText());
+        if (!why.isEmpty()) {
+            nothing.setText(why);
+            nothing.setVisible(true);
+        }
         table.setVisible(false);
+        noDetail.setVisible(false);
     }
 
+    // The sample shown, and in place of it, if it is empty, what to do about that
+    private void showUnmarked(final String text) {
+        final boolean empty = text == null || text.isEmpty();
+        matches.setVisible(!empty);
+        nothing.setText(empty
+                ? "No sample. Click to type or paste one."
+                : "");
+        nothing.setVisible(empty);
+    }
+
+
+    /// Shows one group alone, in every match: its rule, and the others' taken away from over it,
+    /// so that its whole extent shows; or, with [RegexController#NO_GROUP], every group, as at
+    /// rest. `0` is the whole match.
+    ///
+    /// @param group The group.
+    public void lightGroup(final int group) {
+        final Element block = matches.getElement();
+        final NodeList<Element> spans = block.getElementsByTagName("span");
+        boolean any = false;
+        for (int i = 0; i < spans.getLength(); i++) {
+            final Element span = spans.getItem(i);
+            final boolean lit = group != RegexController.NO_GROUP && groupOf(span) == group;
+            if (lit) {
+                span.addClassName(Marks.HOT_CLASS);
+                any = true;
+            } else {
+                span.removeClassName(Marks.HOT_CLASS);
+            }
+        }
+        if (any) {
+            block.addClassName(Marks.POINTING_CLASS);
+        } else {
+            block.removeClassName(Marks.POINTING_CLASS);
+        }
+    }
+
+    // The group of the innermost mark the element is in: a capture's own, 0 for a match, or
+    // NO_GROUP outside every mark
+    private int groupAt(final EventTarget target) {
+        if (!Element.is(target)) {
+            return RegexController.NO_GROUP;
+        }
+        Element at = Element.as(target);
+        while (at != null && at != matches.getElement()) {
+            final int group = groupOf(at);
+            if (group != RegexController.NO_GROUP) {
+                return group;
+            }
+            at = at.getParentElement();
+        }
+        return RegexController.NO_GROUP;
+    }
+
+    // A mark's group: a capture's is after the colon of its frame:index, and a match is $0
+    private static int groupOf(final Element span) {
+        final String capture = span.getAttribute(Marks.CAPTURE_ATTR);
+        if (capture != null && !capture.isEmpty()) {
+            return Integer.parseInt(capture.substring(capture.indexOf(':') + 1));
+        }
+        final String frame = span.getAttribute(Marks.FRAME_ATTR);
+        return frame != null && !frame.isEmpty()
+                ? 0
+                : RegexController.NO_GROUP;
+    }
+
+    /// @param onGroupPoint Told the group the pointer is on, `0` for a match outside any
+    ///                     capturing group, and [RegexController#NO_GROUP] when it leaves.
+    public void setOnGroupPoint(final IntConsumer onGroupPoint) {
+        this.onGroupPoint = onGroupPoint;
+    }
 
     /// @param onSample Told when sample.
     public void setOnSample(final Runnable onSample) {

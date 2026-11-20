@@ -10,7 +10,7 @@
     background-color: var(--control__background-color);
     border: solid var(--focus-border);
     border-width: 1px 0;
-    font-size: 12.5px;
+    font-size: var(--font-size-13);
 }
 
 /* A row that wraps. The form groups are a label over a control; side by side, a kind with one

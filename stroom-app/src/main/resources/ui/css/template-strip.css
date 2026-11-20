@@ -34,8 +34,8 @@
 
 .template-strip__mode,
 .template-strip__note {
-    color: var(--ss-muted);
-    font-size: 12px;
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -61,7 +61,7 @@
     align-items: center;
     gap: 10px;
     padding: 4px 12px;
-    font-size: 12.5px;
+    font-size: var(--font-size-13);
     min-width: 0;
     /* The match and role rows are as tall as the control in them; the guard row holds only
        text and would sit shorter. One control's height, so the four rows are one rhythm. */
@@ -85,7 +85,7 @@
    line it is about and in the engine's own words; shown only while the line is open. */
 .template-strip__match-error {
     color: var(--bootstrap-error);
-    font-size: 12.5px;
+    font-size: var(--font-size-12);
     padding: 0 12px 4px;
     white-space: pre-wrap;
 }
@@ -120,8 +120,8 @@
 
 .template-strip__match-kind {
     font-weight: 600;
-    color: var(--ss-muted);
-    font-size: 12px;
+    color: var(--form-group__label-color);
+    font-size: var(--font-size-13);
 }
 
 /* The match as it reads at rest: the part that is clicked to open it. */
@@ -133,7 +133,7 @@
 }
 
 .template-strip__match-pattern {
-    font-size: 12.5px;
+    font-size: var(--font-size-13);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -153,7 +153,7 @@
     height: auto;
     min-height: 0;
     font-family: var(--monospace-font-family);
-    font-size: 12.5px;
+    font-size: var(--font-size-13);
     color: inherit;
 }
 
@@ -206,14 +206,15 @@
 }
 
 .template-strip__match-word {
-    color: var(--ss-muted);
-    font-size: 12px;
+    color: var(--form-group__label-color);
+    font-size: var(--font-size-13);
+    font-weight: 600;
 }
 
 .template-strip__match-chip .template-strip__match-workbench {
     flex: none;
     color: var(--link__text-color);
-    font-size: 12px;
+    font-size: var(--font-size-12);
     white-space: nowrap;
 }
 

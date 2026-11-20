@@ -3,24 +3,41 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:form="urn:import:stroom.widget.form.client"
-             xmlns:split="urn:import:stroom.widget.layout.client">
-    <split:SplitPane vertical="true" thin="true" sizes="160px, *" names="Sample, Matches"
+             xmlns:split="urn:import:stroom.widget.layout.client"
+             xmlns:ss="urn:import:stroom.shapeshifter.client.component">
+    <!-- The workbench's data, read downwards as the Design tab's is (ruled 2026-11-20): the
+         sample, where the Design tab has its input, and each match's place and groups. Each
+         folds away under its title bar, as the Design tab's panes do, and the sample takes what
+         the match detail leaves. -->
+    <split:SplitPane ui:field="column" vertical="true" thin="true" sizes="*, 30%"
+                     minSizes="26px, 26px" names="Sample, Match detail"
                      addStyleNames="max default-min-sizes">
-        <g:FlowPanel styleName="max sample__input">
-            <t:Html styleName="workbench-form__heading">Sample <span class="workbench-form__heading-note">(the cursor's frame to start with; edit freely — this never runs the document)</span></t:Html>
-            <form:TextArea ui:field="sample" styleName="sample__text mono"
-                           ariaLabel="Sample text to match against"/>
-        </g:FlowPanel>
-        <!-- The matches table scrolls when there are many, so the keyboard can
-             reach it: a named region that takes the focus -->
-        <split:ScrollPane addStyleNames="max scroll-region"
-                          focusable="true" role="region" ariaLabel="Matches">
-            <g:FlowPanel styleName="sample__output">
-                <t:Label ui:field="summary" styleName="workbench-form__heading"/>
-                <t:Html ui:field="matches" styleName="content-box sample__matches mono"/>
-                <t:Html ui:field="table"/>
-                <t:Label ui:field="nothing" styleName="placeholder"/>
+        <ss:CollapsiblePane ui:field="samplePane" heading="Sample">
+            <!-- At rest the sample fills the pane, its matches marked, as the Design tab's
+                 input is. Clicked, or Enter on it, it is the field it is edited in; leaving the
+                 field, or Escape, marks it again: the strip's match box, which reads at rest and
+                 opens to be changed (design 47 B). -->
+            <g:FlowPanel styleName="max sample__input">
+                <g:FocusPanel ui:field="read" styleName="sample__read">
+                    <g:FlowPanel>
+                        <t:Html ui:field="matches" styleName="content-box mono"/>
+                        <t:Label ui:field="nothing" styleName="placeholder sample__placeholder"/>
+                    </g:FlowPanel>
+                </g:FocusPanel>
+                <form:TextArea ui:field="sample" styleName="sample__text mono" visible="false"
+                               ariaLabel="Sample text to match against"/>
             </g:FlowPanel>
-        </split:ScrollPane>
+        </ss:CollapsiblePane>
+        <ss:CollapsiblePane ui:field="detailPane" heading="Match detail">
+            <!-- Scrolls when there is more than it can show, so the keyboard can reach it: a
+                 named region that takes the focus -->
+            <split:ScrollPane addStyleNames="max scroll-region"
+                              focusable="true" role="region" ariaLabel="Match detail">
+                <g:FlowPanel styleName="sample__detail">
+                    <t:Html ui:field="table"/>
+                    <t:Label ui:field="noDetail" styleName="placeholder"/>
+                </g:FlowPanel>
+            </split:ScrollPane>
+        </ss:CollapsiblePane>
     </split:SplitPane>
 </ui:UiBinder>

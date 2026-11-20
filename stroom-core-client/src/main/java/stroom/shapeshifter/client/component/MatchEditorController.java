@@ -101,9 +101,22 @@ public class MatchEditorController extends Controller {
         regexForm.setOnExplode(() -> convert(MatchKind.TREE));
     }
 
-    /// Told the group the regex map isolates, 0 for none.
+    /// Told the group the regex map isolates, [RegexController#NO_GROUP] for none.
     public void setOnGroupSelect(final IntConsumer onGroupSelect) {
         regexForm.setOnGroupSelect(onGroupSelect);
+    }
+
+    /// Told the group the pointer is on in the regex's pattern or rows, and
+    /// [RegexController#NO_GROUP] when it leaves.
+    public void setOnGroupPoint(final IntConsumer onGroupPoint) {
+        regexForm.setOnGroupPoint(onGroupPoint);
+    }
+
+    /// Shows the group the pointer is on in the sample alone in the regex's pattern and rows.
+    ///
+    /// @param group The group, or [RegexController#NO_GROUP] when it is on none.
+    public void pointGroup(final int group) {
+        regexForm.pointGroup(group);
     }
 
     /// Told the label of the tree node selected, null for an unlabelled one or none.

@@ -16,17 +16,17 @@
             <g:FlowPanel styleName="workbench-form__section">
                 <t:Label styleName="workbench-form__heading" text="Limits"/>
                 <g:FlowPanel styleName="edit-form__step-row">
-                    <t:Label styleName="edit-form__limit-label" text="min"/>
+                    <t:Label styleName="edit-form__limit-label" text="Min"/>
                     <form:TextBox ui:field="min" styleName="edit-form__input edit-form__limit-input" ariaLabel="Match at least"/>
                     <t:Label styleName="edit-form__description" text="fewer matches than this is reported (a message, not a failure)"/>
                 </g:FlowPanel>
                 <g:FlowPanel styleName="edit-form__step-row">
-                    <t:Label styleName="edit-form__limit-label" text="max"/>
+                    <t:Label styleName="edit-form__limit-label" text="Max"/>
                     <form:TextBox ui:field="max" styleName="edit-form__input edit-form__limit-input" ariaLabel="Match at most"/>
                     <t:Label styleName="edit-form__description" text="stop matching this template after N matches"/>
                 </g:FlowPanel>
                 <g:FlowPanel styleName="edit-form__step-row">
-                    <t:Label styleName="edit-form__limit-label" text="only"/>
+                    <t:Label styleName="edit-form__limit-label" text="Only"/>
                     <form:TextBox ui:field="only" styleName="edit-form__input edit-form__limit-input" ariaLabel="Match only"/>
                     <t:Label styleName="edit-form__description" text="process only these matches, 1-based, comma-separated"/>
                 </g:FlowPanel>

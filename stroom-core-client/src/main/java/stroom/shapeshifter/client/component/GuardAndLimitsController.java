@@ -56,6 +56,8 @@ public class GuardAndLimitsController extends Controller {
 
     private ProjectHost host;
     private String templateId;
+    private Runnable onChange = () -> {
+    };
 
     @Inject
     public GuardAndLimitsController(final EventBus eventBus, final GuardAndLimits view) {
@@ -77,6 +79,11 @@ public class GuardAndLimitsController extends Controller {
 
     public void setHost(final ProjectHost host) {
         this.host = host;
+    }
+
+    /// @param onChange Told when the template's guard or limits have been changed here.
+    public void setOnChange(final Runnable onChange) {
+        this.onChange = onChange;
     }
 
     public void setTemplate(final String id) {
@@ -205,6 +212,7 @@ public class GuardAndLimitsController extends Controller {
             return;
         }
         host.replace(host.withTemplate(Templates.withGuard(template, guard)));
+        onChange.run();
     }
 
     public void onGuardJson(final String json) {
@@ -223,6 +231,7 @@ public class GuardAndLimitsController extends Controller {
         }
         view.setError(null);
         host.replace(host.withTemplate(Templates.withGuard(template, guard)));
+        onChange.run();
     }
 
     public void onLimitsChange(final String min, final String max, final String only) {
@@ -257,6 +266,7 @@ public class GuardAndLimitsController extends Controller {
         }
         view.setError(null);
         host.replace(host.withTemplate(Templates.withLimits(template, limits)));
+        onChange.run();
     }
 
     // One place that says what read-only means here, called when the context changes and

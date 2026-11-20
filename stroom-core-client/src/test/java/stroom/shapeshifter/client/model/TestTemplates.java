@@ -234,6 +234,37 @@ class TestTemplates {
         assertThat(Templates.limitNote(eater)).isNull();
     }
 
+    @Test
+    void theGuardAndLimitsAreSaidInALine() {
+        // The workbench's title bar for them, which says what they hold when folded away
+        final Template plain = limited(MatchLimits.unlimited());
+        assertThat(Templates.describeGuardAndLimits(plain)).isEqualTo("no guard · no limits");
+        assertThat(Templates.unguardedAndUnlimited(plain)).isTrue();
+        assertThat(Templates.unguardedAndUnlimited(limited(null))).isTrue();
+
+        final Template limitedOnly = limited(new MatchLimits(2, 5, Set.of(3)));
+        assertThat(Templates.describeGuardAndLimits(limitedOnly)).isEqualTo("no guard · min 2 · max 5 · only [3]");
+        assertThat(Templates.unguardedAndUnlimited(limitedOnly)).isFalse();
+        // Any one limit is a limit
+        assertThat(Templates.unguardedAndUnlimited(limited(new MatchLimits(1, MatchLimits.UNLIMITED, null))))
+                .isFalse();
+        assertThat(Templates.unguardedAndUnlimited(limited(new MatchLimits(0, MatchLimits.UNLIMITED, Set.of(1)))))
+                .isFalse();
+
+        final Template guarded = Templates.withGuard(plain, GuardClause.write(
+                List.of(new GuardClause("status", GuardClause.Op.EQ, "400", null)), GuardClause.Join.ALL));
+        assertThat(Templates.describeGuardAndLimits(guarded)).startsWith("status ").endsWith(" · no limits");
+        assertThat(Templates.unguardedAndUnlimited(guarded)).isFalse();
+    }
+
+    @Test
+    void limitsAreSaidInALine() {
+        assertThat(Templates.describeLimits(null)).isEqualTo("no limits");
+        assertThat(Templates.describeLimits(MatchLimits.unlimited())).isEqualTo("no limits");
+        assertThat(Templates.describeLimits(new MatchLimits(0, 1, null))).isEqualTo("max 1");
+        assertThat(Templates.describeLimits(new MatchLimits(2, MatchLimits.UNLIMITED, Set.of()))).isEqualTo("min 2");
+    }
+
     private static Template limited(final MatchLimits limits) {
         return new Template(ProjectText.newId(), "t", null, false, null, null, List.of(),
                 new MatchExpression.Regex("a", null, 0), limits, null, List.of(), null, false);

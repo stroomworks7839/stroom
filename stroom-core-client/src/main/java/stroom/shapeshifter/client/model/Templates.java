@@ -258,6 +258,49 @@ public final class Templates {
                 : "at most " + limits.maxMatch();
     }
 
+    /// A template's limits in a line, as the strip and the workbench say them: `min 2 · max 5`,
+    /// `only [1, 3]`, or `no limits`.
+    ///
+    /// @param limits The limits, or null for none.
+    /// @return The line.
+    public static String describeLimits(final MatchLimits limits) {
+        final List<String> parts = new ArrayList<>();
+        if (limits != null) {
+            if (limits.minMatch() > 0) {
+                parts.add("min " + limits.minMatch());
+            }
+            if (limits.maxMatch() != MatchLimits.UNLIMITED) {
+                parts.add("max " + limits.maxMatch());
+            }
+            if (limits.onlyMatch() != null && !limits.onlyMatch().isEmpty()) {
+                parts.add("only " + limits.onlyMatch());
+            }
+        }
+        return parts.isEmpty()
+                ? "no limits"
+                : String.join(" · ", parts);
+    }
+
+    /// A template's guard and limits in a line, as the workbench's title bar for them says it:
+    /// `no guard · no limits`, `status ge 400 · max 1`.
+    ///
+    /// @param template The template.
+    /// @return The line.
+    public static String describeGuardAndLimits(final Template template) {
+        return GuardClause.describe(template.guard()) + " · " + describeLimits(template.matchLimits());
+    }
+
+    /// @param template The template.
+    /// @return Whether it has neither a guard nor any limit, so that every frame of its mode is
+    ///         tried and every match counts.
+    public static boolean unguardedAndUnlimited(final Template template) {
+        final GuardClause.Rows guard = GuardClause.read(template.guard());
+        final MatchLimits limits = template.matchLimits();
+        return guard != null && guard.rows().isEmpty()
+               && (limits == null || (limits.minMatch() == 0 && limits.maxMatch() == MatchLimits.UNLIMITED
+                                      && (limits.onlyMatch() == null || limits.onlyMatch().isEmpty())));
+    }
+
     /// What the template's matches are for: a record, or only the cursor's advance (§5f).
     public static Template withRole(final Template t, final boolean consume) {
         return new Template(t.id(), t.name(), t.mode(), consume, t.guard(), t.param(), t.declarations(),

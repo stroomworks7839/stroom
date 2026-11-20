@@ -98,6 +98,25 @@
     border-bottom-color: color-mix(in srgb, var(--hue) 75%, transparent);
 }
 
+/* A ruled match: the workbench's sample, where the whole match is a group, `$0`, listed with its
+   colour beside the others (ruled 2026-11-20). Its rule sits under its captures', so a character
+   shows the rule of the innermost group it is in, as the pattern above it does. The Design tab's
+   matches are never ruled: there, a match draws nothing until it is pointed at. */
+.mark.mark--ruled {
+    border-bottom-color: color-mix(in srgb, var(--hue) 75%, transparent);
+}
+
+/* The workbench's sample is pattern data, as typed (shapeshifter-design.css, Code): its marks keep
+   the sample's font and size, which Stroom would set afresh on every span (base.css), and so
+   leave a line in two fonts where a mark starts. Said of the sample alone for now: the Design
+   tab's panes have the same split, and are a ruling of their own to make. */
+.sample__read .mark,
+.sample__read .mark--capture,
+.sample__read .mark--gap {
+    font-family: inherit;
+    font-size: inherit;
+}
+
 /* The output pane's two channels, the same pair the content pane draws over a capture and
    answering the same two questions of a body card instead (design 18 §5.13): the colour says
    which card wrote these bytes, and the rule says the card is one of the current level's. The

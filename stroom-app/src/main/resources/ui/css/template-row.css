@@ -43,15 +43,15 @@
 }
 
 .template-row__count {
-    color: var(--ss-muted);
-    font-size: 12px;
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
 }
 
 /* What the template's limit lets it match, after the count: what tells apart two templates
    with one pattern, the first of which matches once and the other the rest (design 47 §7.3). */
 .template-row__limit {
-    color: var(--ss-muted);
-    font-size: 12px;
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
     white-space: nowrap;
 }
 
@@ -60,18 +60,25 @@
     color: inherit;
 }
 
-/* A section built from a row carries the row's children, which would otherwise out-vote the
-   heading: the name is monospace and the value a size larger, shouted by the inherited
-   uppercase. A heading is a heading whichever widget draws it. */
-.template-panel__section .template-row__name {
-    font-family: inherit;
+/* A section built from a row carries the row's count, which says what the section holds as a
+   fold's note does (disclosure-button.css): quieter than the heading it is on. */
+.template-panel__section .template-row__count {
+    font-size: var(--font-size-12);
+    font-weight: 400;
 }
 
-.template-panel__section .template-row__count {
-    font-size: 11px;
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: normal;
+/* A destination's name is the section's heading, so it is drawn as one (shapeshifter-design.css):
+   said on the name itself, as Stroom sets every div's size and weight afresh (base.css) and
+   the section's would not reach it. */
+.template-panel__section .template-row__name {
+    font-size: var(--font-size-13);
+    font-weight: 600;
+}
+
+/* A destination has no arrow, and starts its name where a fold's starts, after the arrow's
+   width and the gap (disclosure-button.css), so the four names stand in one column. */
+.template-panel__section--link .template-row__line {
+    padding-left: calc(.7rem + 6px);
 }
 
 /* The heat bar under a template row (design 18 §5.8). */
@@ -100,6 +107,6 @@
 }
 
 .template-row__flag {
-    font-size: 10px;
+    font-size: var(--font-size-10);
     flex: none;
 }

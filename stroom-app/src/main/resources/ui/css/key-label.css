@@ -1,15 +1,13 @@
 /*
- * The small-caps key in a label-and-value strip (TemplateStrip, Body): one column, so
+ * The key, a label, in a label-and-value strip (TemplateStrip, Body): one column, so
  * every control beside one starts at the same x.
  */
 .key-label {
-    color: var(--ss-muted);
+    color: var(--form-group__label-color);
     /* One column for match, match is, guard and body, so every control starts at the same x
-       and the body's cards line up under them. */
-    width: 64px;
+       and the body's cards line up under them; in ems, so it grows with the words. */
+    width: 5em;
     flex: none;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .05em;
+    font-size: var(--font-size-13);
     font-weight: 600;
 }

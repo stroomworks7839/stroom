@@ -107,7 +107,8 @@ value, a dash for a group that took no part. **Isolation**: a group clicked in t
 or a labelled node selected in the tree, leaves only that group's spans painted.
 
 **Layout.** The workbench's centre is a west/centre split: the sample at 420 px on the left,
-the match editor on the right; guard and limits beneath both as before.
+the match editor on the right; guard and limits beneath both as before. *Superseded 2026-11-20:
+§5p.*
 
 **Not built: per-node spans for unlabelled tree nodes** (Q4). A labelled node is a group and
 gets a span for free; an unlabelled one would need the compiler to label it synthetically.
@@ -758,6 +759,79 @@ show it twice over, once as `document` and once as an ordinary root row.
 Still open, and named rather than guessed at: `RootPlanner` takes `findFirst()`, so a **second**
 source template is silently ignored. That should be a compile refusal, and is not one yet.
 
+**Four sections, two of which fold — ruled and built 2026-11-20.** The three headings were drawn
+three ways: SETTINGS and DATA large and light, TEMPLATES small and bold, and the parts of the
+library under a lowercase `patterns` that read as a mode of the templates. The panel now has four
+peer headings of one height, each a band of its own, in sentence case and in the panel's one
+font, the template and part names included:
+
+```
+  Settings
+  Data                pasted · 3 lines
+⌄ Templates           2 templates
+    mode: default
+      document
+      line
+⌄ Patterns            4 patterns
+      TIMESTAMP
+```
+
+Settings and Data are destinations, as before. **Templates and Patterns fold**: pressing the
+heading hides what it holds or brings it back, and the heading says how many either way. The
+arrow is the explorer's, `ARROW_RIGHT` and `ARROW_DOWN` at the explorer's size, ruled the
+reference so that every fold in Stroom looks the same; the Design tab's collapsible panes
+(Input, Variables, Output, Messages) changed from text triangles to it as well. Both are a
+`DisclosureButton`, which says which way it is with `aria-expanded`.
+
+A fold is the panel's own state, not the project's, and survives the panel being refreshed by an
+edit or a run. **Folding the section the selection is in keeps the selection**, and the strip
+beside the panel with it; the heading is marked down its edge as holding it until it is
+unfolded. Stories: `TemplatesAndPatternsFold`, `AFoldedSectionStaysFoldedOverARun`.
+
+The same ruling took the capitals out of the whole editor: every small-capitals title and label
+(the panes' titles, the strip's keys, the workbench's headings, the limits' labels) is sentence
+case now. Words that are the language's own — a card's kind, a branch's `when` and
+`otherwise`, a part's kind, a pattern tree's `sequence` — stay lowercase, as they are written in
+a project.
+
+**Six text styles, Stroom's where it has one — ruled and built 2026-11-20.** An inventory found the
+tab's text in ten sizes (10 to 13px in half-pixel steps, and two in ems), four weights, five greys
+(its own `--ss-muted` and four opacities), italic for four different things, and names in
+monospace in some places and sans in others: `pair` was sans in the panel, bold monospace over
+the strip and semibold in the breadcrumb. Each difference asked the author to learn what it meant,
+and most meant nothing. The tab now draws all its text in six styles:
+
+| Style | Spec | For |
+|---|---|---|
+| Heading | `--font-size-13`, 600, `--text-color` | a panel section, the template's name over the strip, a title |
+| Label | Stroom's form label: `--font-size-13`, 600, `--form-group__label-color` | every key, pane title, workbench heading, limit, card kind and branch key |
+| Body | `--font-size-13`, 400 | rows, cards, values, and every name |
+| Meta | `--font-size-12`, 400, `--text-color--muted` | notes, counts, descriptions, hints, types, run state |
+| Code | `--monospace-font-family`, `--font-size-13` | pattern and data text as typed |
+| Error | `--font-size-12`, `--bootstrap-error` | a match's or a pattern's error |
+
+- **Labels are Stroom's.** The tab's dialogs were already `FormGroup`s, so a dialog opened from the
+  strip said "Name" one way and the strip behind it said "Match" another. Both are the form label
+  now.
+- **A name is body text**, sans and regular, wherever it is. Monospace means text the author
+  typed as pattern or data, and only that. The template's name over the strip is a heading, as
+  a title; the breadcrumb's crumbs are regular, the current one marked by its fill.
+- **Italic means "nothing here"** (`placeholder.css`) and nothing else: the run's state, the
+  workbench's lint and a mode's "nothing dispatches into this" are Meta, plain.
+- **Greys are Stroom's** `--text-color--muted`; `--ss-muted` is gone, and no text is greyed by
+  opacity. A template with no matches still dims its whole row: a row's state, not a text style.
+- **Sizes are Stroom's variables**, so the tab follows the user's font size (Small, Medium,
+  Large) as every other screen does. Stroom gives every `div` and `span` `--font-size-13`
+  (`base.css`), which is about 15px at the default Medium; the tab's fixed 12px and 12.5px had
+  been sitting beside it. The key column and the limits' labels are sized in ems so they grow
+  with their words.
+- The **pattern tree's boxes** are the one exception: the layout sizes them in pixels from the
+  length of their words (`PatternItemRenderer`), so the words keep pixel sizes. A capture's
+  node lost its bold; its words already say `→ name`.
+
+The scale is written down where every sheet of the tab can find it, at the head of
+`shapeshifter-design.css`.
+
 ## 5n. What the panel sections say, and one that forgot itself — built 2026-09-23
 
 **A declaration on the document threw the author back to SETTINGS.** `refresh` keeps the selection
@@ -811,6 +885,87 @@ The workbench now takes the whole area right of the panel, by the mechanism the 
 already used — `centre.setWidget(...)` rather than hiding rows and swapping a cell. Two things
 that replace the navigator now do it the same way, and the strip's cell only ever holds the
 strip. `topRow` was addressed by nothing afterwards and is gone rather than left wired.
+
+**Written on the left, the data on the right — ruled and built 2026-11-20.** The workbench was the
+sample on the left, the match editor on the right, and guard and limits across the bottom at a
+fixed 210px. Three things were wrong with it. The guard and limits took that room from the match
+editor whether or not the template had any, and most have none; the tree-shaped kinds, which need
+the height most, had least. The sample was shown twice, once to edit and once marked, stacked on
+the left, while the pattern that marked it was across the screen. And the Design tab it replaces
+reads the other way round: the template's own in the middle, the data down the right.
+
+The workbench now reads as the Design tab does:
+
+```
+Pattern workbench — pair                                            ✕
+┌ What is written ───────────────────┬ The data ──────────────────────┐
+│ Match kind [regex          ▾]      │ ⌄ Sample    1 match · tried …  │
+│ Pattern                            │   host=web01 (marked)          │
+│ ([a-z]+)=([^\n]*)\n                │   level=warn                   │
+│ explode › ☐ dot-all ☐ case  Adv    │                                │
+│                                    │ ⌄ Match detail                 │
+│ › Guard and limits  no guard · no… │   1  0 +11  $1 host  $2 web01  │
+└────────────────────────────────────┴────────────────────────────────┘
+```
+
+- **The left is the template's own**, what is saved: the match editor, and under it the guard
+  and limits, a pane that folds away under its title bar. The bar says what they hold
+  (`no guard · max 1`), so a folded pane still answers whether there is anything in it.
+  **Folded when there is nothing in them, open when there is**, each time the workbench shows a
+  template; a fold the user chooses is kept while the workbench is open, and forgotten when it
+  closes. A fold never happens under an edit: deleting the last clause leaves them open.
+- **The right is the data**, nothing of which is saved: the sample where the Design tab has its
+  input, then each match's place and groups. Each is a pane that folds as the Design tab's do,
+  and the sample takes what the detail leaves, as the input does there.
+- **The sample is the input's twin.** At rest it fills its pane, its matches marked, and
+  pointing at one lights it; its bar says how many matched. Clicked, or Enter on it, it becomes
+  the field it is edited in, filling the pane; leaving the field, or Escape, marks it again —
+  the strip's match box, which reads at rest and opens to be changed (design 47 B). The marks
+  are not shown while typing: a field cannot carry them, and laying a transparent field over
+  marked text was rejected as fragile (the two must agree on font, wrapping and scrolling) and
+  because it would take the pointer from the marks. It replaced a separate field and a marked
+  copy of it, one above the other.
+
+The Design tab's data column and its messages, and the workbench's two columns, share their
+length the same way, through one class, `FoldingPanes`, rather than four copies of the
+arithmetic. A part of the library has no guard or limits, and its workbench has no such pane.
+Stories: `TheWorkbenchFoldsAnEmptyGuard`, which also opens the sample to edit and puts it back
+with Escape; the split walkthrough's step 7 now opens the folded limits before setting one.
+
+**A group is one colour everywhere, `$0` included — ruled and built 2026-11-20.** The groups list
+had a swatch for each capturing group, and the pattern was drawn once under the Pattern field in
+runs coloured by the innermost group. The whole match had no colour and no row, and the sample's
+matches drew nothing at rest, so the swatches were mirrored nowhere.
+
+```
+Groups
+ ([a-z]+)=([^\n]*)\n         every group's rule, $0 the whole: a character
+ ‾‾‾‾‾‾‾‾ ‾‾‾‾‾‾‾‾‾‾          shows the innermost group it is in
+■ $0  whole match
+■ $1  → [declaration]
+■ $2  → [declaration]
+```
+
+- **`$0` is a group**: the first row, its swatch the template's own colour (the panel's), and it
+  says "whole match" where the others have their declaration. In the sample a match is ruled
+  in that colour at rest — the workbench only; the Design tab's matches still draw nothing until
+  pointed at (Q17).
+- **The pattern is shown once, under the Groups heading**, not under the Pattern field and not on
+  every row (both were considered). Each group is a span, nested as the groups are, so a
+  character shows the rule of the innermost group it is in, and the sample does the same.
+- **Pointing at a group shows it alone**, everywhere: at its row, at it in the pattern or at it
+  in the sample, it lights its row and leaves only its rule, in the pattern and in every match
+  of the sample. Because the spans nest, the others' rules taken away reveal its whole extent.
+  **A click keeps it so**, as it did; the sample lights rather than redraws for a regex's group,
+  so the pointer is never under text that is being replaced.
+- **The pattern and the sample keep their font through their marks.** Stroom sets every span's
+  font afresh (`base.css`), which drew a group's or a mark's text in the regular font in the
+  middle of monospace. Said of the workbench alone; the Design tab's panes have the same split.
+
+Stories: `PointingAtAGroupShowsItAlone`. The stories' stubbed pattern inspection had the groups
+one character short (`end` is just past the `)`, `PatternInfo.Group`), and the sample's trial was
+answered with the whole document's run; both are now what the server would say.
+
 
 ## 5q. The reference is stripped; the bytes travel — ruled and built 2026-09-24
 

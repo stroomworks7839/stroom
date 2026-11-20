@@ -2,8 +2,8 @@
  * What the cursor's frame holds (ContentPane): the reader, and the loose values beside it.
  */
 .content-pane__note {
-    color: var(--ss-muted);
-    font-size: 12px;
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
     padding: 0 10px 6px;
     flex: none;
 }
@@ -32,7 +32,7 @@
     padding: 2px 6px;
     border-left: 3px solid var(--hue);
     cursor: pointer;
-    font-size: 12.5px;
+    font-size: var(--font-size-13);
 }
 
 .content-pane__loose:hover {
@@ -40,7 +40,7 @@
 }
 
 .content-pane__loose-label {
-    color: var(--ss-muted);
+    color: var(--text-color--muted);
     white-space: nowrap;
 }
 

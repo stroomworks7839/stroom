@@ -29,12 +29,10 @@ import stroom.shapeshifter.client.model.Profile;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.client.model.TraceModel;
-import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
-import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
@@ -231,7 +229,7 @@ public class TemplateStripController extends Controller {
             }
         }
         modeTemplates = ids;
-        view.setHeader("mode", null, mode, rows.size() == 1
+        view.setHeader("Mode", null, mode, rows.size() == 1
                 ? "1 template"
                 : rows.size() + " templates", "");
         final Modes.DispatchState state = project == null
@@ -306,7 +304,7 @@ public class TemplateStripController extends Controller {
         final Project project = host.getProject();
         final Template template = host.template(id);
         if (template == null) {
-            view.setHeader("document", null, project == null
+            view.setHeader("Document", null, project == null
                     ? ""
                     : project.name(), "", "the root frame: every template descends from here");
             view.setNameEditable(false, "", "");
@@ -322,11 +320,11 @@ public class TemplateStripController extends Controller {
             // Read only now: the name being typed went with the field
             closeTitle();
         }
-        view.setHeader("template", host.colour(template.id()), template.name(), "mode " + Modes.label(template.mode()),
+        view.setHeader("Template", host.colour(template.id()), template.name(), "mode " + Modes.label(template.mode()),
                 "dispatched from " + dispatchedFrom(project, template) + runNote(template));
         view.setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
-                guardSummary(template.guard()) + guardVerdict(template) + " · "
-                + limitsSummary(template.matchLimits()),
+                GuardClause.describe(template.guard()) + guardVerdict(template) + " · "
+                + Templates.describeLimits(template.matchLimits()),
                 readOnly
                         ? null
                         : MatchLine.of(template.match()));
@@ -777,26 +775,6 @@ public class TemplateStripController extends Controller {
                             : " frames");
         }
         return text.toString();
-    }
-
-    static String guardSummary(final Condition guard) {
-        return GuardClause.describe(guard);
-    }
-
-    static String limitsSummary(final MatchLimits limits) {
-        final List<String> parts = new ArrayList<>();
-        if (limits.minMatch() > 0) {
-            parts.add("min " + limits.minMatch());
-        }
-        if (limits.maxMatch() != MatchLimits.UNLIMITED) {
-            parts.add("max " + limits.maxMatch());
-        }
-        if (limits.onlyMatch() != null && !limits.onlyMatch().isEmpty()) {
-            parts.add("only " + limits.onlyMatch());
-        }
-        return parts.isEmpty()
-                ? "no limits"
-                : String.join(" · ", parts);
     }
 
     /// What the strip asks of the root: the dialogs and the workbench are the root's to open.

@@ -2,10 +2,8 @@
  * The framed sequence's parts (Parts): the list, its items, and each part's kind and text.
  */
 .parts__kind {
-    font-size: 0.85em;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    opacity: 0.6;
+    font-size: var(--font-size-12);
+    color: var(--text-color--muted);
 }
 
 .parts__tree,
@@ -56,4 +54,10 @@
 
 .parts__item--selected {
     background-color: var(--row__background-color--selected);
+}
+
+/* On the selected row the kind is the row's own colour, as a selected template row's count is:
+   the muted grey does not stand off the selection's fill. */
+.parts__item--selected .parts__kind {
+    color: inherit;
 }

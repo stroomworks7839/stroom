@@ -18,8 +18,23 @@
     background-color: var(--row__background-color--selected);
 }
 
+/* The group shown alone, pointed at here, in the pattern or in the sample. */
+.group-row--lit {
+    background-color: var(--row__background-color--hovered);
+}
+
+.group-row--selected.group-row--lit {
+    background-color: var(--row__background-color--selected--hovered);
+}
+
+/* $0 says what it is where the others have their declaration. */
+.group-row__whole {
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
+}
+
 .group-row__arrow {
-    color: var(--ss-muted);
+    color: var(--text-color--muted);
 }
 
 .group-row__capture-name {

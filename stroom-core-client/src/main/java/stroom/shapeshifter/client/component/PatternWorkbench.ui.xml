@@ -5,23 +5,32 @@
              xmlns:split="urn:import:stroom.widget.layout.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component"
              xmlns:b="urn:import:stroom.widget.button.client">
-    <split:SplitPane ui:field="layout" vertical="true" thin="true" sizes="34px, *, 210px"
-                     names="Title, Workbench, Guard and limits"
+    <split:SplitPane vertical="true" thin="true" sizes="34px, *" names="Title, Workbench"
                      addStyleNames="max default-min-sizes">
         <g:FlowPanel styleName="pattern-workbench__title">
-            <t:Label text="Pattern workbench —"/>
-            <t:Label ui:field="kind"/>
+            <t:Label styleName="pattern-workbench__title-text" text="Pattern workbench —"/>
+            <t:Label ui:field="kind" styleName="pattern-workbench__title-text"/>
             <!-- What is being worked on. A part's name is edited here, where it reads (the
                  owner, 2026-11-18); a template's is edited in its own title. -->
             <ss:NameEdit ui:field="subject"/>
             <t:Label styleName="pattern-workbench__spacer"/>
             <b:Toolbar name="Actions" ui:field="buttons"/>
         </g:FlowPanel>
-        <split:SplitPane thin="true" sizes="420px, *" names="Sample, Editor"
+        <!-- What is written on the left, the template's own: its match, then its guard and
+             limits, folded away when there are none. The data on the right, where the Design
+             tab has its input: the sample, what the match found in it, and each match's groups
+             (ruled 2026-11-20). -->
+        <split:SplitPane thin="true" sizes="*, 45%" names="Match, Data"
                          addStyleNames="max default-min-sizes">
+            <split:SplitPane ui:field="match" vertical="true" thin="true" sizes="*, 210px"
+                             minSizes="120px, 26px" names="Match, Guard and limits"
+                             addStyleNames="max default-min-sizes">
+                <g:SimplePanel ui:field="editor" styleName="max"/>
+                <ss:CollapsiblePane ui:field="guardPane" heading="Guard and limits">
+                    <g:SimplePanel ui:field="guardAndLimits" styleName="max"/>
+                </ss:CollapsiblePane>
+            </split:SplitPane>
             <g:SimplePanel ui:field="sample" styleName="max"/>
-            <g:SimplePanel ui:field="editor" styleName="max"/>
         </split:SplitPane>
-        <g:SimplePanel ui:field="guardAndLimits" styleName="max"/>
     </split:SplitPane>
 </ui:UiBinder>

@@ -30,6 +30,7 @@ import stroom.gwt.workbench.framework.client.story.StoryLayout;
 import stroom.gwt.workbench.framework.client.story.StoryRegistry;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -68,6 +69,15 @@ public final class ShapeshifterTemplateStories {
     private static final String KIND = "Kind of match";
     private static final String SPLIT_ON = "Split on";
     private static final String MAKE_DELIMITER = "Make the match a delimiter";
+    private static final String EXPANDED = "aria-expanded";
+    private static final String HOLDS_SELECTION = "template-panel__section--holds-selection";
+    private static final String SAMPLE_MARK = ".sample__read .mark";
+    private static final String SAMPLE_FIELD = "Sample text to match against";
+    private static final String SAMPLE_BLOCK = ".sample__read .content-box";
+    private static final String CAPTURE = ".sample__read [data-cap=";
+    private static final String GROUP = ".regex__pattern-map .regex__group";
+    private static final String POINTING = "pointing";
+    private static final String LIT = "highlight";
     // Long enough for the line to be made a delimiter before the regex's answer arrives
     private static final int LATE_ANSWER_MS = 1500;
 
@@ -802,7 +812,160 @@ public final class ShapeshifterTemplateStories {
                     play.expect(play.querySelector(MATCH_ERROR)).not().toBeVisible();
                     play.expect(play.getByLabelText(SPLIT_ON)).not().toHaveAttribute("aria-invalid");
                     play.expect(play.getByLabelText(PATTERN)).not().toHaveAttribute("aria-invalid");
+                })
+                // The panel's four headings: Settings and Data are destinations, Templates and
+                // Patterns fold what they hold, saying how much (ruled 2026-11-20). Folding the
+                // section the selected template is in keeps it selected, and the strip beside
+                // the panel with it; the heading is marked as holding it, until it is unfolded
+                // The workbench reads as the Design tab does (ruled 2026-11-20): what is written on
+                // the left, the match and under it the guard and limits, folded away while the
+                // template has none; the data on the right, the sample, its matches and each
+                // match's groups, each folding as the Design tab's panes do. Opened again, the
+                // workbench opens the guard and limits of a template that has some.
+                .story("TheWorkbenchFoldsAnEmptyGuard", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.click(ShapeshifterEditorStories.workbenchButton(play));
+                    play.waitFor(() -> play.expect(ShapeshifterSplitStories.guardAndLimits(play,
+                            "no guard · no limits")).toHaveAttribute(EXPANDED, "false"));
+                    play.expect(play.getByLabelText("Match at most")).not().toBeVisible();
+                    for (final String data : List.of("Sample", "Match detail")) {
+                        play.expect(pane(play, data)).toHaveAttribute(EXPANDED, "true");
+                    }
+                    // The sample fills its pane, marked, as the input does; its bar says how
+                    // many matched
+                    play.waitFor(() -> play.expect(play.querySelector(SAMPLE_MARK)).toBeVisible());
+                    play.expect(pane(play, "Sample"))
+                            .toHaveTextContent(TextMatch.regex("^Sample 2 matches · tried at 3"));
+                    play.expect(play.getByLabelText(SAMPLE_FIELD)).not().toBeVisible();
+                    // Clicked, it is a field to edit it in; Escape marks it again, and goes no
+                    // further than the field: the workbench stays open
+                    play.click(play.querySelector(SAMPLE_MARK));
+                    play.waitFor(() -> play.expect(play.getByLabelText(SAMPLE_FIELD)).toHaveFocus());
+                    play.keyboard("{Escape}");
+                    play.waitFor(() -> play.expect(play.querySelector(SAMPLE_MARK)).toBeVisible());
+                    play.expect(play.getByLabelText(SAMPLE_FIELD)).not().toBeVisible();
+                    play.expect(play.getByRole("button", TextMatch.regex("close the workbench", "i")))
+                            .toBeVisible();
+                    // A limit set, the title bar says so
+                    play.click(ShapeshifterSplitStories.guardAndLimits(play, "no guard · no limits"));
+                    play.waitFor(() -> play.expect(play.getByLabelText("Match at most")).toBeVisible());
+                    play.type(play.getByLabelText("Match at most"), "1");
+                    play.keyboard("{Tab}");
+                    play.waitFor(() -> play.expect(ShapeshifterSplitStories.guardAndLimits(play,
+                            "no guard · max 1")).toBeVisible());
+                    // Closed and opened again, the guard and limits are open, as they hold one
+                    play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
+                    play.waitFor(() -> play.expect(play.queryByRole("button",
+                            TextMatch.regex("close the workbench", "i"))).toBeNull());
+                    play.click(ShapeshifterEditorStories.workbenchButton(play));
+                    play.waitFor(() -> play.expect(ShapeshifterSplitStories.guardAndLimits(play,
+                            "no guard · max 1")).toHaveAttribute(EXPANDED, "true"));
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // Every group has its colour, $0 the whole match the template's own: the pattern,
+                // once under the groups' heading, is underlined in them, and so is the sample.
+                // Pointing at a group, at its row, in the pattern or in the sample, shows it alone
+                // everywhere (ruled 2026-11-20)
+                .story("PointingAtAGroupShowsItAlone",
+                        context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.click(ShapeshifterEditorStories.workbenchButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(GROUP + "[data-group='2']"))
+                            .not().toBeNull());
+                    // The pattern's groups are where the parser says they are, each to its ')'
+                    play.expect(play.querySelector(GROUP + "[data-group='0']").textContent())
+                            .toEqual("([a-z]+)=([^\\n]*)\\n");
+                    play.expect(play.querySelector(GROUP + "[data-group='1']").textContent())
+                            .toEqual("([a-z]+)");
+                    play.expect(play.querySelector(GROUP + "[data-group='2']").textContent())
+                            .toEqual("([^\\n]*)");
+                    // $0 first, saying what it is where the others have their declaration
+                    play.expect(groupRow(play, 0).textContent()).toMatch("$0");
+                    play.expect(groupRow(play, 0).textContent()).toMatch("whole match");
+                    // At rest every group's rule is drawn in the sample, nothing lit
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE + "'1:2']")).not().toBeNull());
+                    play.expect(play.querySelector(CAPTURE + "'1:2']").textContent()).toEqual("web01");
+                    play.expect(play.querySelector(SAMPLE_BLOCK)).not().toHaveClass(POINTING);
+                    // Pointing at $1's row shows $1 alone, in every match and in the pattern
+                    play.hover(groupRow(play, 1));
+                    play.waitFor(() -> play.expect(play.querySelector(SAMPLE_BLOCK)).toHaveClass(POINTING));
+                    play.expect(play.querySelector(CAPTURE + "'1:1']")).toHaveClass(LIT);
+                    play.expect(play.querySelector(CAPTURE + "'2:1']")).toHaveClass(LIT);
+                    play.expect(play.querySelector(CAPTURE + "'1:2']")).not().toHaveClass(LIT);
+                    play.expect(play.querySelector(GROUP + "[data-group='1']")).toHaveClass("regex__group--lit");
+                    play.expect(play.querySelector(GROUP + "[data-group='2']"))
+                            .not().toHaveClass("regex__group--lit");
+                    // ...and pointing at $2 in the sample lights its row and its part of the pattern
+                    play.hover(play.querySelector(CAPTURE + "'2:2']"));
+                    play.waitFor(() -> play.expect(groupRow(play, 2)).toHaveClass("group-row--lit"));
+                    play.expect(groupRow(play, 1)).not().toHaveClass("group-row--lit");
+                    play.expect(play.querySelector(GROUP + "[data-group='2']")).toHaveClass("regex__group--lit");
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                .story("TemplatesAndPatternsFold", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(fold(play, "Templates")).toBeVisible());
+                    play.expect(fold(play, "Templates"))
+                            .toHaveTextContent(TextMatch.regex("^Templates \\d+ templates$"));
+                    play.expect(fold(play, "Templates")).toHaveAttribute(EXPANDED, "true");
+                    play.expect(fold(play, "Patterns")).toHaveTextContent("Patterns none");
+                    play.expect(play.getByText("Settings", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible();
+                    play.expect(play.getByText("Data", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("mode kv", ".template-strip__mode")).toBeVisible());
+
+                    play.click(fold(play, "Templates"));
+                    play.waitFor(() -> play.expect(fold(play, "Templates")).toHaveAttribute(EXPANDED, "false"));
+                    play.expect(play.getByText("pair", ShapeshifterEditorStories.TEMPLATE_NAME)).not().toBeVisible();
+                    play.expect(fold(play, "Templates")).toHaveClass(HOLDS_SELECTION);
+                    play.expect(play.getByText("mode kv", ".template-strip__mode")).toBeVisible();
+                    // The other sections are where they were
+                    play.expect(fold(play, "Patterns")).toBeVisible();
+                    play.expect(play.getByText("Data", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible();
+
+                    play.click(fold(play, "Templates"));
+                    play.waitFor(() -> play.expect(play.getByText("pair", ShapeshifterEditorStories.TEMPLATE_NAME))
+                            .toBeVisible());
+                    play.expect(fold(play, "Templates")).toHaveAttribute(EXPANDED, "true");
+                    play.expect(fold(play, "Templates")).not().toHaveClass(HOLDS_SELECTION);
+                    // Patterns folds as Templates does, holding no selection
+                    play.click(fold(play, "Patterns"));
+                    play.waitFor(() -> play.expect(fold(play, "Patterns")).toHaveAttribute(EXPANDED, "false"));
+                    play.expect(fold(play, "Patterns")).not().toHaveClass(HOLDS_SELECTION);
+                    play.click(fold(play, "Patterns"));
+                    play.waitFor(() -> play.expect(fold(play, "Patterns")).toHaveAttribute(EXPANDED, "true"));
+                })
+                // A run refreshes the panel's rows, and what was folded stays folded
+                .story("AFoldedSectionStaysFoldedOverARun", context -> ShapeshifterEditorStories.render(context,
+                        false))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.click(fold(play, "Templates"));
+                    play.waitFor(() -> play.expect(fold(play, "Templates")).toHaveAttribute(EXPANDED, "false"));
+                    play.click(ShapeshifterEditorStories.runButton(play));
+                    play.waitFor(() -> play.expect(play.getAllByText(TextMatch.regex("web01")).count())
+                            .toSatisfy("the run's output", count -> ((Integer) count) > 0));
+                    play.expect(fold(play, "Templates")).toHaveAttribute(EXPANDED, "false");
+                    play.expect(fold(play, "Templates")).toHaveClass(HOLDS_SELECTION);
+                    play.expect(play.getByText("pair", ShapeshifterEditorStories.TEMPLATE_NAME)).not().toBeVisible();
                 });
+    }
+
+    // A row of the workbench's groups, $0 first
+    private static Query groupRow(final Play play, final int group) {
+        return play.querySelector(".regex__groups > .group-row:nth-child(" + (group + 1) + ")");
+    }
+
+    // A pane of the workbench's data, by its title bar: its name, and what it holds if it says
+    private static Query pane(final Play play, final String name) {
+        return play.getByRole("button", TextMatch.regex("^" + name + "( |$)"));
+    }
+
+    // A section of the panel that folds, by its name: the button is named by it and what it holds
+    private static Query fold(final Play play, final String name) {
+        return play.getByRole("button", TextMatch.regex("^" + name + " "));
     }
 
     // The open line's match made a delimiter on a separator, and taken with Enter

@@ -1,0 +1,50 @@
+/*
+ * A button that shows and hides what follows it (DisclosureButton): the explorer's arrow, then
+ * its text, then a quieter note. The arrow is the explorer's at the explorer's size
+ * (explorer-cell.css), so a fold looks the same wherever it is.
+ */
+.disclosure-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-align: left;
+}
+
+/* A title that can be pressed, not a link: not underlined on hover. */
+.disclosure-button:hover {
+    text-decoration: none;
+}
+
+.disclosure-button__arrow {
+    display: flex;
+    flex: none;
+}
+
+.disclosure-button__arrow svg {
+    width: .7rem;
+    height: .7rem;
+}
+
+/* The text keeps its width and the note gives way: a note can be as long as a guard, and the
+   text is the button's name. */
+.disclosure-button__text {
+    flex: 1 0 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* The button's own size and weight: Stroom sets every span's afresh (base.css), which
+       would leave a heading's or a label's words regular */
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.disclosure-button__note {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-color--muted);
+    font-size: var(--font-size-12);
+    font-weight: 400;
+}

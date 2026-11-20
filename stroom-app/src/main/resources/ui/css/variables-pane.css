@@ -8,17 +8,15 @@
 
 .variables-pane__heading {
     display: block;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--ss-muted);
+    font-size: var(--font-size-13);
+    color: var(--form-group__label-color);
     padding: 8px 12px 4px;
     font-weight: 600;
 }
 
 .variables-pane__heading--link,
 .variables-pane__heading--link:visited {
-    color: var(--ss-muted);
+    color: var(--text-color--muted);
     text-decoration: none;
     cursor: pointer;
 }
@@ -33,7 +31,7 @@
     align-items: baseline;
     gap: 8px;
     padding: 3px 12px;
-    font-size: 13px;
+    font-size: var(--font-size-13);
 }
 
 .variables-pane__row:hover {
@@ -41,12 +39,11 @@
 }
 
 .variables-pane__name {
-    font-weight: 600;
 }
 
 .variables-pane__type {
-    font-size: 10.5px;
-    color: var(--ss-muted);
+    font-size: var(--font-size-12);
+    color: var(--text-color--muted);
     background: rgba(127, 127, 127, .12);
     border: 1px solid var(--control__border-color);
     border-radius: 3px;

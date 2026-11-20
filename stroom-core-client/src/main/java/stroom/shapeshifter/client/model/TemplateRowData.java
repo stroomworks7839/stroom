@@ -30,10 +30,11 @@ public final class TemplateRowData {
     private final int cost;
     private final String profile;
     private final int severity;
-    /// A section of the panel rather than a row in one — SETTINGS, DATA, TEMPLATES (design 44
-    /// §5m). Two of the three are also a destination, so a section is a row that renders as a
-    /// heading rather than a heading that happens to be clickable: selection, hover and the
-    /// keyboard then work on it exactly as they do on everything else in the list.
+    /// A section of the panel rather than a row in one — Settings, Data, Templates, Patterns
+    /// (design 44 §5m, ruled 2026-11-20). Two of the four are a destination, so a section is a
+    /// row that renders as a heading rather than a heading that happens to be clickable:
+    /// selection, hover and the keyboard then work on it exactly as they do on everything else
+    /// in the list. The other two hold what follows them, and fold.
     private final boolean panelSection;
     /// What is worth saying about the mode this row heads, or null. Carried by the first row of
     /// a mode because the heading is drawn from that row rather than being a row of its own.
@@ -126,7 +127,13 @@ public final class TemplateRowData {
         return title;
     }
 
-    /// A panel section: uppercase, a destination when it carries an id, and what it holds.
+    /// A panel section: a destination when it carries an id, and otherwise a heading over the
+    /// rows that follow it, which folds them away.
+    ///
+    /// @param id What selecting it selects, or null for a section that folds.
+    /// @param name What it is called.
+    /// @param count What it says of what it holds, or null.
+    /// @return The row.
     public static TemplateRowData section(final String id, final String name, final String count) {
         return new TemplateRowData(id, name, null, null, count, false, 0, 0, null, 0, true);
     }
@@ -153,7 +160,8 @@ public final class TemplateRowData {
         this.severity = severity;
     }
 
-    /// Whether this is a panel section — a heading, and a destination when it has an id.
+    /// Whether this is a panel section — a heading, and a destination when it has an id, or
+    /// one that folds what follows it when it has none.
     public boolean isSection() {
         return panelSection;
     }

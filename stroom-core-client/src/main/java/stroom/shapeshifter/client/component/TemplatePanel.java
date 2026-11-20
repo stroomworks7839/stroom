@@ -32,9 +32,11 @@ import com.google.gwt.user.client.ui.Widget;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /// The panel's list: the project's sections, its templates under their modes, and its parts.
@@ -46,6 +48,13 @@ import java.util.function.Consumer;
 ///
 /// **A mode's heading selects the mode**, whose own pane is where it is named; the root's is
 /// only a heading.
+///
+/// **Four headings of one height, two of which fold** (ruled 2026-11-20). Settings and Data are
+/// destinations, selected as a row is. Templates and Patterns are what they hold, and pressing
+/// one folds it away or brings it back, with the explorer's arrow saying which
+/// ([DisclosureButton]). What is folded stays folded while the panel is refreshed. A selection
+/// inside a folded section stays where it is, and the heading is marked as holding it, so
+/// folding loses nothing and changes nothing beside the panel.
 public class TemplatePanel
         extends Component {
 
@@ -62,6 +71,12 @@ public class TemplatePanel
     // The add links on screen, by their ids
     // The headings on screen that select a mode, by the ids they select
     private final Map<String, FocusPanel> heads = new HashMap<>();
+    // The sections that fold, as they are on screen
+    private final List<Group> groups = new ArrayList<>();
+    // The sections folded away, by name: kept across a refresh, which rebuilds the list
+    private final Set<String> folded = new HashSet<>();
+    // The row or heading selected, which a folded section may hold
+    private String selected;
 
     @UiField
     Toolbar toolbar;
@@ -78,21 +93,30 @@ public class TemplatePanel
         return toolbar;
     }
 
+    /// Shows the rows, keeping folded what was folded.
+    ///
+    /// @param data The rows, in order: a section, then what it holds.
     public void setRows(final List<TemplateRowData> data) {
         list.clear();
         rows.clear();
         heads.clear();
+        groups.clear();
+        // Where the next row goes: the list, or the section that holds it
+        FlowPanel into = list;
+        Group group = null;
         String section = null;
         for (final TemplateRowData row : data) {
             if (row.isSection()) {
-                // A section heading. SETTINGS and DATA are destinations and so are rows that
-                // render as headings; TEMPLATES heads the list and is a label (design 44 §5m).
+                // A section heading. Settings and Data are destinations and so are rows that
+                // render as headings; Templates and Patterns hold what follows them, and fold
+                // (design 44 §5m, ruled 2026-11-20).
                 section = null;
                 if (row.getId() == null) {
-                    final Label head = new Label(row.getName());
-                    head.setStyleName("template-panel__section");
-                    list.add(head);
+                    group = newGroup(row);
+                    into = group.body;
                 } else {
+                    group = null;
+                    into = list;
                     final TemplateRow widget = newRow(row);
                     widget.addStyleName("template-panel__section template-panel__section--link");
                     rows.add(widget);
@@ -102,15 +126,59 @@ public class TemplatePanel
             }
             if (row.getSection() != null && !Objects.equals(section, row.getSection())) {
                 section = row.getSection();
-                list.add(head(row));
+                into.add(head(row));
+                if (group != null && row.getSectionId() != null) {
+                    group.ids.add(row.getSectionId());
+                }
             }
             if (row.isFresh()) {
-                list.add(addLink(row));
+                into.add(addLink(row));
                 continue;
             }
             final TemplateRow widget = newRow(row);
             rows.add(widget);
-            list.add(widget);
+            into.add(widget);
+            if (group != null) {
+                group.ids.add(row.getId());
+            }
+        }
+        markFolded();
+    }
+
+    // A section that folds: its heading, and under it what it holds
+    private Group newGroup(final TemplateRowData row) {
+        final Group group = new Group(row.getName());
+        group.heading.addStyleName("template-panel__section template-panel__section--fold");
+        group.heading.setText(row.getName());
+        group.heading.setNote(row.getCount());
+        group.heading.setOnClick(() -> {
+            if (!folded.remove(group.name)) {
+                folded.add(group.name);
+            }
+            fold(group);
+            markFolded();
+        });
+        fold(group);
+        list.add(group.heading);
+        list.add(group.body);
+        groups.add(group);
+        return group;
+    }
+
+    private void fold(final Group group) {
+        final boolean isFolded = folded.contains(group.name);
+        group.heading.setExpanded(!isFolded);
+        group.heading.setTitle((isFolded
+                ? "Show the "
+                : "Hide the ") + group.name.toLowerCase());
+        group.body.setVisible(!isFolded);
+    }
+
+    // A folded section holding the selection says so, as the selection itself is out of sight
+    private void markFolded() {
+        for (final Group group : groups) {
+            group.heading.setStyleName("template-panel__section--holds-selection",
+                    folded.contains(group.name) && selected != null && group.ids.contains(selected));
         }
     }
 
@@ -168,6 +236,8 @@ public class TemplatePanel
     }
 
     public void setSelected(final String id) {
+        selected = id;
+        markFolded();
         for (final TemplateRow row : rows) {
             row.setSelected(Objects.equals(row.getData().getId(), id));
         }
@@ -203,5 +273,19 @@ public class TemplatePanel
 
     interface Binder extends UiBinder<Widget, TemplatePanel> {
 
+    }
+
+    /// A section that folds: its heading, what it holds, and the ids of the rows and headings in
+    /// it, which a selection may be one of.
+    private static final class Group {
+
+        private final String name;
+        private final DisclosureButton heading = new DisclosureButton();
+        private final FlowPanel body = new FlowPanel();
+        private final Set<String> ids = new HashSet<>();
+
+        private Group(final String name) {
+            this.name = name;
+        }
     }
 }

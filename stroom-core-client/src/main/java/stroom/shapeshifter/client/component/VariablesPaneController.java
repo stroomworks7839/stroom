@@ -106,8 +106,8 @@ public class VariablesPaneController extends Controller {
             }
             final boolean own = id == host.cursor();
             sections.add(new Section(id, own
-                    ? "this match"
-                    : "outer scope · " + trace.label(id), rows, frame == null
+                    ? "This match"
+                    : "Outer scope · " + trace.label(id), rows, frame == null
                     ? "the document binds nothing"
                     : "this pattern bound nothing", !own));
         }

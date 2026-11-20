@@ -40,7 +40,7 @@ import java.util.function.IntConsumer;
 /// line each when empty and scroll with the rest of it (the owner, 2026-11-18).
 ///
 /// ```
-/// <ss:DefinitionList ui:field="declarations" heading="declarations" kind="declaration"/>
+/// <ss:DefinitionList ui:field="declarations" heading="Declarations" kind="declaration"/>
 /// ```
 public class DefinitionList extends Composite {
 
@@ -72,7 +72,7 @@ public class DefinitionList extends Composite {
         show();
     }
 
-    /// @param heading What the section is called, e.g. `declarations`.
+    /// @param heading What the section is called, e.g. `Declarations`.
     public void setHeading(final String heading) {
         this.heading.setText(heading);
     }

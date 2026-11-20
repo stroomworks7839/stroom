@@ -4,7 +4,7 @@
  */
 .definition-list {
     padding: 2px 0;
-    font-size: 12.5px;
+    font-size: var(--font-size-13);
 }
 
 .definition-list__head {
@@ -37,8 +37,6 @@
 }
 
 .definition-list__name {
-    font-family: var(--monospace-font-family);
-    font-weight: 600;
     white-space: nowrap;
 }
 
@@ -48,7 +46,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--ss-muted);
+    color: var(--text-color--muted);
 }
 
 /* Shown with the row's hover or focus, as a card's actions are */

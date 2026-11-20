@@ -7,5 +7,5 @@
     padding: 0 10px 6px;
     white-space: pre;
     line-height: 1.7;
-    font-size: 13px;
+    font-size: var(--font-size-13);
 }

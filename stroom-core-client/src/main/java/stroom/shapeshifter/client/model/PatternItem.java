@@ -28,15 +28,13 @@ public final class PatternItem {
     private final String parentPath;
     private final String label;
     private final boolean container;
-    private final boolean labelled;
 
     public PatternItem(final String path, final String parentPath, final String label,
-                       final boolean container, final boolean labelled) {
+                       final boolean container) {
         this.path = path;
         this.parentPath = parentPath;
         this.label = label;
         this.container = container;
-        this.labelled = labelled;
     }
 
     public String getPath() {
@@ -55,11 +53,6 @@ public final class PatternItem {
     /// Whether the node holds children: a sequence, a choice, a repeat and the rest.
     public boolean isContainer() {
         return container;
-    }
-
-    /// Whether the node carries a capture label: a box of its own colour, as an operator is.
-    public boolean isLabelled() {
-        return labelled;
     }
 
     @Override

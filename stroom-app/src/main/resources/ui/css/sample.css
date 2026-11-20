@@ -1,20 +1,35 @@
 /*
- * The workbench's sample (design 44 §2): the text above, and its matches with their
- * groups below (Sample).
+ * The workbench's data (design 44 §2, Sample): the sample, its matches marked, and each match's
+ * place and groups, each a pane that folds away, as the Design tab's input is.
  */
 .sample__input {
     display: flex;
     flex-direction: column;
-    padding: 8px 14px 6px;
     box-sizing: border-box;
 }
 
+/* The sample at rest: its text, marked, filling the pane as the Design tab's input does, and
+   the way in to editing it. */
+.sample__read {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    cursor: text;
+    outline: none;
+}
+
+.sample__read:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--focus-border);
+}
+
+/* The sample being edited: a field in the marked text's place, as large. */
 .sample__text {
     flex: 1;
     min-height: 0;
-    width: 100%;
+    margin: 4px 6px 6px;
+    width: calc(100% - 12px);
     resize: none;
-    font-size: 13px;
+    font-size: var(--font-size-13);
     padding: 4px 8px;
     border: 1px solid var(--control__border-color);
     border-radius: 5px;
@@ -23,20 +38,19 @@
     box-sizing: border-box;
 }
 
-.sample__output {
-    padding: 8px 14px;
+/* The matches are drawn as the Design tab's input is: the text, marked, with the pane for its
+   frame (content-box.css). */
+.sample__placeholder {
+    padding-top: 8px;
 }
 
-.sample__matches {
-    padding: 6px 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
+.sample__detail {
+    padding: 4px 12px 8px;
 }
 
 .sample__table {
-    margin-top: 8px;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: var(--font-size-13);
 }
 
 .sample__table td {
@@ -45,12 +59,11 @@
 }
 
 .sample__number {
-    color: var(--ss-muted);
+    color: var(--text-color--muted);
 }
 
 .sample__at {
-    color: var(--ss-muted);
-    font-family: var(--monospace-font-family);
+    color: var(--text-color--muted);
     white-space: nowrap;
 }
 
@@ -67,7 +80,6 @@
 }
 
 .sample__group-name {
-    font-size: 11px;
     margin-right: 4px;
 }
 
@@ -77,9 +89,5 @@
 }
 
 .sample__group-none {
-    color: var(--ss-muted);
-}
-
-.sample__matches {
-    background-color: var(--control__background-color);
+    color: var(--text-color--muted);
 }

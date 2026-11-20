@@ -37,7 +37,7 @@
                      the strategy its dispatch sites share, set here on all of them; and, while
                      nothing dispatches into it, the way to make the document do so. -->
                 <g:FlowPanel ui:field="dispatchLine" styleName="template-strip__line" visible="false">
-                    <t:Label styleName="key-label" text="dispatch"/>
+                    <t:Label styleName="key-label" text="Dispatch"/>
                     <l:SelectionBox ui:field="dispatch" ariaLabel="How the mode is dispatched" addStyleNames="template-strip__role"
                                     title="How templates in this mode are chosen where it is dispatched. Set here, it is set on every apply-templates that dispatches into the mode."/>
                     <t:Label ui:field="dispatchNote" styleName="edit-form__description template-strip__role-note"/>
@@ -45,9 +45,9 @@
                                     title="Point the document's apply-templates at this mode"/>
                 </g:FlowPanel>
                 <!-- A mode's templates, when it is a mode that is shown. -->
-                <ss:DefinitionList ui:field="templates" heading="templates" kind="template" visible="false"/>
+                <ss:DefinitionList ui:field="templates" heading="Templates" kind="template" visible="false"/>
                 <g:FlowPanel ui:field="matchLine" styleName="template-strip__line">
-                    <t:Label styleName="key-label" text="match"/>
+                    <t:Label styleName="key-label" text="Match"/>
                     <!-- What the template matches, in a box the size of a field. At rest it
                          reads; clicked, a regex or a delimiter is its kind and its fields in the
                          same box, taken with Enter (design 47 B and G). The workbench is beside
@@ -93,7 +93,7 @@
                 <!-- Between the match and the body, because that is where it acts: the match
                      is found either way, and skipping decides what becomes of it (design 44 §5d). -->
                 <g:FlowPanel ui:field="roleLine" styleName="template-strip__line">
-                    <t:Label styleName="key-label" text="match is"/>
+                    <t:Label styleName="key-label" text="Match is"/>
                     <l:SelectionBox ui:field="role" ariaLabel="What the match is for" addStyleNames="template-strip__role"
                                     title="What this match is for. Both roles advance the cursor and run the body; only a record counts, captures and opens a frame to step."/>
                     <t:Label ui:field="roleNote" styleName="edit-form__description template-strip__role-note"/>
@@ -101,14 +101,14 @@
                 <!-- Guard and limits off the match row, so the match can have the width
                      (design 44 §5h). -->
                 <g:FlowPanel ui:field="guardLine" styleName="template-strip__line">
-                    <t:Label styleName="key-label" text="guard"/>
+                    <t:Label styleName="key-label" text="Guard"/>
                     <t:Label ui:field="guardLimits" styleName="placeholder template-strip--clickable"
                              title="Guard and limits — edited in the workbench"/>
                 </g:FlowPanel>
                 <!-- The names the template defines, before the body that uses them: what it
                      declares, and what its match binds. -->
-                <ss:DefinitionList ui:field="declarations" heading="declarations" kind="declaration"/>
-                <ss:DefinitionList ui:field="captures" heading="captures" kind="capture"/>
+                <ss:DefinitionList ui:field="declarations" heading="Declarations" kind="declaration"/>
+                <ss:DefinitionList ui:field="captures" heading="Captures" kind="capture"/>
                 <g:SimplePanel ui:field="content" styleName="template-strip__content"/>
             </g:FlowPanel>
         </split:ScrollPane>

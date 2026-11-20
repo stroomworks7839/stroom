@@ -22,10 +22,14 @@ import stroom.widget.text.client.Label;
 import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.EventTarget;
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.MouseOutEvent;
+import com.google.gwt.event.dom.client.MouseOverEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Composite;
@@ -35,8 +39,10 @@ import com.google.gwt.user.client.ui.Widget;
 import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
-/// One row of the groups panel: chip · `$n` · → · the declaration's name. The name commits
-/// when the field is left or Enter is pressed — the same live convention as everything else.
+/// One row of the groups panel: chip · `$n` · → · the declaration's name, or for `$0`, the whole
+/// match, chip · `$0` · whole match. The name commits when the field is left or Enter is pressed
+/// — the same live convention as everything else. Pointing at the row shows its group alone, in
+/// the pattern and in the sample, and clicking it keeps it so.
 public class GroupRow extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -48,12 +54,18 @@ public class GroupRow extends Composite {
     @UiField
     Label index;
     @UiField
+    Label arrow;
+    @UiField
     TextBox name;
+    @UiField
+    Label whole;
 
     private final GroupRowData data;
     private BiConsumer<Integer, String> onName = (at, name) -> {
     };
     private IntConsumer onSelect = at -> {
+    };
+    private IntConsumer onPoint = at -> {
     };
     private String committed;
 
@@ -74,9 +86,33 @@ public class GroupRow extends Composite {
                 ? "declaration"
                 : data.getSyntaxName());
         name.setEnabled(enabled);
+        if (data.getIndex() == 0) {
+            arrow.setVisible(false);
+            name.setVisible(false);
+            whole.setVisible(true);
+        }
         if (data.isSelected()) {
             row.addStyleName("group-row--selected");
         }
+        addDomHandler(event -> onPoint.accept(data.getIndex()), MouseOverEvent.getType());
+        addDomHandler(event -> {
+            // Leaving one of the row's own parts for another is not leaving the row
+            final EventTarget to = event.getRelatedTarget();
+            if (to == null || !Element.is(to) || !getElement().isOrHasChild(Element.as(to))) {
+                onPoint.accept(RegexController.NO_GROUP);
+            }
+        }, MouseOutEvent.getType());
+    }
+
+    /// @param lit Whether the row's group is the one shown alone: pointed at, here or in the
+    ///            pattern or the sample, or kept by a click.
+    public void setLit(final boolean lit) {
+        row.setStyleName("group-row--lit", lit);
+    }
+
+    /// @return The group this row is.
+    public int getIndex() {
+        return data.getIndex();
     }
 
     private void onChip(final ClickEvent e) {
@@ -119,6 +155,14 @@ public class GroupRow extends Composite {
     /// @param onSelect The handler.
     public void setOnSelect(final IntConsumer onSelect) {
         this.onSelect = onSelect;
+    }
+
+    /// Told when the pointer comes onto this row, with its group's index, and when it leaves,
+    /// with [RegexController#NO_GROUP].
+    ///
+    /// @param onPoint The handler.
+    public void setOnPoint(final IntConsumer onPoint) {
+        this.onPoint = onPoint;
     }
 
     interface Binder extends UiBinder<Widget, GroupRow> {

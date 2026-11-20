@@ -8,7 +8,7 @@
     border: 1px dashed var(--border-color);
     border-radius: 5px;
     font-family: var(--monospace-font-family);
-    font-size: 13px;
+    font-size: var(--font-size-13);
     word-break: break-all;
     white-space: pre-wrap;
     min-height: 18px;
@@ -18,7 +18,11 @@
    --selected and :hover put behind the group, and the rule is not part of that. An underline
    stops where its characters do (design 18 §5.12.3) — tapered ends read as a mark trailing
    off — and the wash sitting on a square-ended rule makes the rule its bottom edge. */
+/* The pattern's font and size, which Stroom would set afresh on every span (base.css) and so
+   break the pattern into two fonts where a group starts. */
 .regex__group {
+    font-family: inherit;
+    font-size: inherit;
     cursor: pointer;
     border-radius: 2px 2px 0 0;
     border-bottom: 2px solid var(--hue);
@@ -30,8 +34,17 @@
     background-color: color-mix(in srgb, var(--hue) 30%, transparent);
 }
 
-.regex__group:hover {
-    background-color: var(--row__background-color--hovered);
+/* $0, the whole pattern: its rule, under the others', and not the text's colour, which is the
+   capturing groups'. */
+.regex__group--whole {
+    color: inherit;
+}
+
+/* One group shown alone (Regex#lightGroup): the others' rules and colours taken away, so its
+   rule shows over its whole extent, under any group inside it as well. */
+.regex__pattern-map--pointing .regex__group:not(.regex__group--lit) {
+    border-bottom-color: transparent;
+    color: inherit;
 }
 
 .regex__row {
@@ -43,5 +56,5 @@
 }
 
 .regex__groups {
-    font-size: 12.5px;
+    font-size: var(--font-size-13);
 }

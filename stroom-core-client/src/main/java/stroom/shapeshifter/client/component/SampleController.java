@@ -43,6 +43,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /// The workbench's sample (design 44 §2, design 18 §5.6): text to try the match against, seeded
@@ -75,8 +76,11 @@ public class SampleController extends Controller {
     private boolean running;
     private boolean runAgain;
     private ShapeshifterTrace trace;
-    private int isolatedGroup;
+    private int isolatedGroup = RegexController.NO_GROUP;
     private String isolatedLabel;
+    private int pointedGroup = RegexController.NO_GROUP;
+    private IntConsumer onGroupPoint = group -> {
+    };
 
     @Inject
     public SampleController(final EventBus eventBus, final Sample view, final RestFactory restFactory) {
@@ -84,6 +88,10 @@ public class SampleController extends Controller {
         this.view = view;
         initWidget(view);
         view.setOnSample(this::onSample);
+        view.setOnGroupPoint(group -> {
+            pointGroup(group);
+            onGroupPoint.accept(group);
+        });
         this.restFactory = restFactory;
         this.rerun = new DelayedUpdate(400, this::run);
         onDispose(rerun::reset);
@@ -113,7 +121,7 @@ public class SampleController extends Controller {
         final boolean changed = !Objects.equals(key, subjectKey);
         if (changed) {
             subjectKey = key;
-            isolatedGroup = 0;
+            isolatedGroup = RegexController.NO_GROUP;
             isolatedLabel = null;
         }
         final String current = view.getSample();
@@ -194,17 +202,40 @@ public class SampleController extends Controller {
         rerun.update();
     }
 
-    /// Isolate a group by number (0 for none): the regex map's click.
+    /// Keep a regex's group shown alone, by number, or [RegexController#NO_GROUP] for none: a
+    /// click on it in the pattern or its row.
     public void isolate(final int group) {
         isolatedGroup = group;
         isolatedLabel = null;
         paint();
     }
 
+    /// Show a regex's group alone while the pointer is on it in the pattern or its row, or with
+    /// [RegexController#NO_GROUP], the group a click keeps, if any, else every group.
+    ///
+    /// @param group The group.
+    public void pointGroup(final int group) {
+        pointedGroup = group;
+        light();
+    }
+
+    /// @param onGroupPoint Told the group the pointer is on in the sample, `0` for a match
+    ///                     outside any capturing group, and [RegexController#NO_GROUP] when it
+    ///                     leaves.
+    public void setOnGroupPoint(final IntConsumer onGroupPoint) {
+        this.onGroupPoint = onGroupPoint;
+    }
+
+    private void light() {
+        view.lightGroup(pointedGroup != RegexController.NO_GROUP
+                ? pointedGroup
+                : isolatedGroup);
+    }
+
     /// Isolate a group by its label (null for none): the tree's selection.
     public void isolate(final String label) {
         isolatedLabel = label;
-        isolatedGroup = 0;
+        isolatedGroup = RegexController.NO_GROUP;
         paint();
     }
 
@@ -305,8 +336,10 @@ public class SampleController extends Controller {
             }
             matches++;
             final int from = frame.getContentOffset();
+            // Ruled, as $0: the whole match is a group here, with its colour in the groups list
+            // (ruled 2026-11-20), where the Design tab draws a match only when it is pointed at
             marks.add(new Mark(Mark.Kind.MATCH, frame.getId(), -1, frame.getTemplateId(), from,
-                    from + frame.getContentLength(), colour, "Match " + frame.getMatchIndex()));
+                    from + frame.getContentLength(), colour, "Match " + frame.getMatchIndex(), true));
             final List<Sample.Cell> cells = new ArrayList<>();
             for (final Group group : groupsOf(frame.getId())) {
                 final boolean placed = group.getContentOffset() != ShapeshifterTrace.NOT_A_SLICE;
@@ -319,7 +352,10 @@ public class SampleController extends Controller {
                     cells.add(new Sample.Cell(group.getIndex(), group.getName(), value,
                             Colours.hue(group.getIndex()), isolated(group)));
                 }
-                if (placed && group.getIndex() > 0 && (nothingIsolated() || isolated(group))) {
+                // A regex's group is shown alone by lighting it (Sample#lightGroup), and every
+                // capture is drawn; a tree's label by drawing only its spans
+                if (placed && group.getIndex() > 0
+                    && (isolatedLabel == null || isolatedLabel.equals(group.getName()))) {
                     // Ruled, because in this pane every capture is the current level's: there is
                     // one pattern and no hierarchy to be below (design 18 §5.11.2).
                     marks.add(new Mark(Mark.Kind.CAPTURE, frame.getId(), group.getIndex(), null, start,
@@ -333,7 +369,7 @@ public class SampleController extends Controller {
         }
         marks.sort(Mark.OUTER_FIRST);
         view.showMatches(text, marks, rows, matches == 0
-                ? "no matches · tried at " + tried + (tried == 1
+                ? "No matches · tried at " + tried + (tried == 1
                         ? " place"
                         : " places")
                 : matches + (matches == 1
@@ -341,6 +377,7 @@ public class SampleController extends Controller {
                         : " matches") + " · tried at " + tried + (tried == 1
                         ? " place"
                         : " places"));
+        light();
     }
 
     private List<Group> groupsOf(final long frameId) {
@@ -353,12 +390,8 @@ public class SampleController extends Controller {
         return out;
     }
 
-    private boolean nothingIsolated() {
-        return isolatedGroup == 0 && isolatedLabel == null;
-    }
-
     private boolean isolated(final Group group) {
-        return isolatedGroup != 0
+        return isolatedGroup != RegexController.NO_GROUP
                 ? group.getIndex() == isolatedGroup
                 : isolatedLabel != null && isolatedLabel.equals(group.getName());
     }

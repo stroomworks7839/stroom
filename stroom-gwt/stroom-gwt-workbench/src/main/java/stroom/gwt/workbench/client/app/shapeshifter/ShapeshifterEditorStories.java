@@ -232,13 +232,49 @@ public final class ShapeshifterEditorStories {
       "runNanos": 412000
     }""";
 
-    // ShapeshifterResource.patternInfo(): the pair template's regex, its two groups
+    // ShapeshifterResource.preview() for the workbench's sample: the pair template tried alone
+    // (Templates.experiment), so its matches are the frames at the root, each with its two groups
+    // placed within it. The comment line is tried and not matched.
+    static final String PAIR_TRIAL = """
+    {
+      "compiled": true, "sampleRead": true,
+      "input": "host=web01\\n# a comment the grammar never claimed\\nlevel=warn\\n",
+      "output": "",
+      "frames": [
+        {"id": 1, "parentId": 0, "templateId": "00000000-0000-0000-0000-000000000002",
+         "templateName": "pair", "matchIndex": 1, "depth": 0,
+         "inputOffset": 0, "inputLength": 11, "contentOffset": 0, "contentLength": 11},
+        {"id": 2, "parentId": 0, "templateId": "00000000-0000-0000-0000-000000000002",
+         "templateName": "pair", "matchIndex": 2, "depth": 0,
+         "inputOffset": 49, "inputLength": 11, "contentOffset": 49, "contentLength": 11}
+      ],
+      "captures": [],
+      "groups": [
+        {"frameId": 1, "index": 1, "name": null, "contentOffset": 0, "contentLength": 4},
+        {"frameId": 1, "index": 2, "name": null, "contentOffset": 5, "contentLength": 5},
+        {"frameId": 2, "index": 1, "name": null, "contentOffset": 0, "contentLength": 5},
+        {"frameId": 2, "index": 2, "name": null, "contentOffset": 6, "contentLength": 4}
+      ],
+      "attempts": [
+        {"parentFrameId": 0, "templateId": "00000000-0000-0000-0000-000000000002", "matched": true,
+         "inputOffset": 0, "contentOffset": 0, "nanos": 0},
+        {"parentFrameId": 0, "templateId": "00000000-0000-0000-0000-000000000002", "matched": false,
+         "inputOffset": 11, "contentOffset": 11, "nanos": 0},
+        {"parentFrameId": 0, "templateId": "00000000-0000-0000-0000-000000000002", "matched": true,
+         "inputOffset": 49, "contentOffset": 49, "nanos": 0}
+      ],
+      "guards": [], "instructions": [], "outputs": [], "messages": [], "timings": [],
+      "attemptsSeen": 3, "runNanos": 1000
+    }""";
+
+    // ShapeshifterResource.patternInfo(): the pair template's regex, its two groups, each from
+    // its '(' to just past its ')' (PatternInfo.Group)
     static final String PATTERN_INFO = """
             {
               "valid": true, "error": null,
               "groups": [
-                {"index": 1, "name": null, "start": 0, "end": 7},
-                {"index": 2, "name": null, "start": 8, "end": 16}
+                {"index": 1, "name": null, "start": 0, "end": 8},
+                {"index": 2, "name": null, "start": 9, "end": 17}
               ],
               "explain": "a lower-case key, '=', then everything to the end of the line"
             }""";
@@ -361,7 +397,7 @@ public final class ShapeshifterEditorStories {
                             ExplorerFixture.doc("Key Value Lines", ShapeshifterDoc.TYPE))))
             .get("/shapeshifter/v1/ss-strict-kv", RestReply.json(DOC))
             .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
-            .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
+            .post("/shapeshifter/v1/preview", ShapeshifterEditorStories::preview)
             .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
             .post("/shapeshifter/v1/patternInfo", RestReply.json(PATTERN_INFO))
             .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
@@ -375,7 +411,7 @@ public final class ShapeshifterEditorStories {
                             ExplorerFixture.doc("Composite Kinds", ShapeshifterDoc.TYPE))))
             .get("/shapeshifter/v1/ss-composite", RestReply.json(COMPOSITE_DOC))
             .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
-            .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
+            .post("/shapeshifter/v1/preview", ShapeshifterEditorStories::preview)
             .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
             .post("/shapeshifter/v1/patternInfo", RestReply.json(PATTERN_INFO))
             .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
@@ -461,22 +497,22 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     selectTemplate(play, "pair");
                     // The strip's rows, by their keys
-                    play.waitFor(() -> play.expect(play.getByText("match", STRIP_KEY))
+                    play.waitFor(() -> play.expect(play.getByText("Match", STRIP_KEY))
                             .toBeInTheDocument());
-                    play.expect(play.getByText("match is", STRIP_KEY)).toBeInTheDocument();
-                    play.expect(play.getByText("guard", STRIP_KEY)).toBeInTheDocument();
+                    play.expect(play.getByText("Match is", STRIP_KEY)).toBeInTheDocument();
+                    play.expect(play.getByText("Guard", STRIP_KEY)).toBeInTheDocument();
                     // The match chip carries the pattern, and opens the workbench
                     play.expect(play.querySelector(MATCH_CHIP)).not().toBeNull();
                     // Declarations and captures are sections of the template, above its body
-                    play.expect(play.getByText("declarations", STRIP_KEY)).toBeInTheDocument();
-                    play.expect(play.getByText("captures", STRIP_KEY)).toBeInTheDocument();
+                    play.expect(play.getByText("Declarations", STRIP_KEY)).toBeInTheDocument();
+                    play.expect(play.getByText("Captures", STRIP_KEY)).toBeInTheDocument();
                     expectNoProblems(play);
                 })
                 // The body of the chosen template: one card per instruction, as the project says
                 .story("TemplateBody", context -> render(context, false))
                 .withPlay(play -> {
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(play.getByText("body", STRIP_KEY))
+                    play.waitFor(() -> play.expect(play.getByText("Body", STRIP_KEY))
                             .toBeInTheDocument());
                     // The pair template writes text, then two captured values, then text
                     play.expect(play.getAllByText("value-of", CARD_KIND).count())
@@ -1602,7 +1638,7 @@ public final class ShapeshifterEditorStories {
     // A marked run in the pattern workbench's matches pane, which renders through Marks as the
     // content and output panes do. A match rather than a capture: the sample tints a capture
     // per regex group, and the canned preview declares no groups.
-    private static final String SAMPLE_MARK = ".sample__matches .mark";
+    private static final String SAMPLE_MARK = ".sample__read .mark";
 
     // Cards of the output, by the frame whose body ran them: the source's first card, which
     // wrote "<records>", and the first card of the first pair it dispatched.
@@ -1759,6 +1795,17 @@ public final class ShapeshifterEditorStories {
 
     static Widget render(final StoryContext context, final boolean readOnly) {
         return render(context, readOnly, FIXTURES, DOC_REF);
+    }
+
+    // The run of the whole document is answered with its trace; the workbench's trial of the pair
+    // template alone (Templates.experiment, a project of that template and no other) with the
+    // pair's own matches
+    static RestReply preview(final RecordedRequest request) {
+        final String body = request.getBody();
+        return body.contains("00000000-0000-0000-0000-000000000002")
+               && !body.contains("00000000-0000-0000-0000-000000000001")
+                ? RestReply.json(PAIR_TRIAL)
+                : RestReply.json(TRACE);
     }
 
     /// The strict_kv document, with some of its routes answered otherwise.
