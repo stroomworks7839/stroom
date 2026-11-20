@@ -1,6 +1,7 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:lay="urn:import:stroom.widget.layout.client"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
@@ -17,11 +18,16 @@
             </form:FormGroup>
             <form:FormGroup ui:field="lengthGroup" identity="shapeshifterPartLength" label="Length"
                             helpText="A count of bytes, or the value a label or a variable holds.">
-                <g:FlowPanel styleName="edit-form__step-row">
-                    <!-- Two controls under one label: each is named for itself, or neither a screen
-                         reader nor a test can tell them apart (design 46 §6.5). -->
-                    <l:SelectionBox ui:field="lengthKind" addStyleNames="clause-row__operator" ariaLabel="Length from"/>
-                    <form:TextBox ui:field="length" styleName="edit-form__input clause-row__value" ariaLabel="Length value"/>
+                <g:FlowPanel>
+                    <g:FlowPanel styleName="edit-form__step-row">
+                        <!-- Two controls under one label: each is named for itself, or neither a screen
+                             reader nor a test can tell them apart (design 46 §6.5). -->
+                        <l:SelectionBox ui:field="lengthKind" addStyleNames="clause-row__operator" ariaLabel="Length from"/>
+                        <form:TextBox ui:field="length" styleName="edit-form__input clause-row__value" ariaLabel="Length value"/>
+                    </g:FlowPanel>
+                    <!-- The labels the parts before this one define, while the length is a
+                         label's value (design 47 §7.19). -->
+                    <t:Label ui:field="lengthHint" styleName="edit-form__hint" visible="false"/>
                 </g:FlowPanel>
             </form:FormGroup>
             <form:FormGroup ui:field="absoluteGroup" identity="shapeshifterPartAbsolute" label="Absolute"

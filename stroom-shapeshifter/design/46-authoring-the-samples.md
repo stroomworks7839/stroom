@@ -1009,7 +1009,7 @@ The sample: length-prefixed binary records — a varint length, then that many b
 | 4 | Sets the template's own encoding to `raw` | The per-template encoding field | built (`TemplateEdit.ui.xml` `encoding`) |
 | 5 | Match kind `parts` | The framed sequence's part list | built (`Parts.ui.xml`) |
 | 6 | Part 1: kind `read`, `As` `varint`, `Label` `len` | — | built (`PartEdit.ui.xml`) |
-| 7 | Part 2: kind `take`, `Length` from the label `len`, `Label` `name` | The length field takes a label, not just a number (`lengthKind`) | built (`PartEdit.ui.xml`); `len` is typed — nothing offers it |
+| 7 | Part 2: kind `take`, `Length` from the label `len`, `Label` `name` | The length field takes a label, not just a number (`lengthKind`) | built (`PartEdit.ui.xml`); since design 47 §7.19 the one earlier label fills in, and the field says which there are |
 | 8 | Body: `<rec name="$name"/>\n`, typed as one line: a `text`, a `value-of` and a `text` (design 47 H) | — | built |
 | 9 | Runs | One `<rec …>` per record | built |
 

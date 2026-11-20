@@ -24,6 +24,7 @@ import stroom.widget.form.client.FormGroup;
 import stroom.widget.form.client.TextArea;
 import stroom.widget.form.client.TextBox;
 import stroom.widget.selection.client.SelectionBox;
+import stroom.widget.text.client.Label;
 import stroom.widget.tickbox.client.TickBox;
 
 import com.google.gwt.core.client.GWT;
@@ -61,6 +62,11 @@ public class PartEdit extends Component {
     FormGroup castGroup;
     @UiField
     SelectionBox<BinaryCast> cast;
+    @UiField
+    Label lengthHint;
+
+    private Runnable onLengthKind = () -> {
+    };
 
     public PartEdit() {
         initWidget(BINDER.createAndBindUi(this));
@@ -69,6 +75,7 @@ public class PartEdit extends Component {
         kind.addItems(Kind.values());
         lengthKind.setDisplayValueFunction(LengthKind::spelling);
         lengthKind.addItems(LengthKind.values());
+        lengthKind.addValueChangeHandler(event -> onLengthKind.run());
         cast.setDisplayValueFunction(BinaryCast::label);
         cast.addItems(BinaryCast.values());
         showKind(Kind.TAKE);
@@ -77,6 +84,24 @@ public class PartEdit extends Component {
 
     public void focus() {
         length.setFocus(true);
+    }
+
+    /// Says what is under the length, or nothing.
+    ///
+    /// @param hint The hint, or null for none.
+    public void setLengthHint(final String hint) {
+        lengthHint.setText(hint == null
+                ? ""
+                : hint);
+        lengthHint.setVisible(hint != null);
+    }
+
+    /// Tells the owner when what the length is taken from is chosen — a count, a label's value
+    /// or a variable's — so it can fill the field and say what there is to choose.
+    ///
+    /// @param onLengthKind Told when what the length is taken from is chosen.
+    public void setOnLengthKind(final Runnable onLengthKind) {
+        this.onLengthKind = onLengthKind;
     }
 
     private void onKind(final ValueChangeEvent<Kind> e) {

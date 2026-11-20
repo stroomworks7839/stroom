@@ -1416,7 +1416,8 @@ work across commits. The demo pack is rebuilt; one entry changes.
 
 - The parts editor's `Length` was two controls under one label. Named for themselves now,
   `Length from` and `Length value`.
-- `len` is typed: nothing offers the labels an earlier part defined. Open.
+- `len` is typed: nothing offers the labels an earlier part defined. *Fixed 2026-11-19, §7.19
+  item 1.*
 - The story harness wrote JSON strings without escaping control characters, which a binary
   sample's length bytes are. Fixed.
 
@@ -1474,8 +1475,20 @@ reading a name no declaration names is refused at compile (`ReferenceCheck.decla
 1. **`Length` offers the labels an earlier part defined** (§7.17, open). A `take` or `seek`
    whose length is a label's value is offered the labels of the parts before it, as the
    capture dialog is offered declared names. Rung 6 walked again with the label picked.
-2. **The mode pane lists the sites that dispatch into the mode** (§7.2, item 16).
-3. **A closing table** for this design: every rung, as first driven and as driven now.
+   **Done 2026-11-19.** Taken from a label, the length says under itself which labels the parts
+   before bind — a `take`'s, a `read`'s, and any a pattern part labels in its tree, as the
+   engine binds them. Where exactly one of them is a `read` cast to an integer, and the field
+   holds nothing or the count a new part starts with, that label fills it; taken from a count
+   again, the field gets back what the fill replaced (`PartLabels`, `TestPartLabels`,
+   `ALengthFilledFromALabelGivesItsCountBack`). Rung 6's `take` no longer clears the field and
+   types `len`: **43 actions**, where it was 45. Its stage fails with the fill taken out.
+2. **The mode pane lists the sites that dispatch into the mode** (§7.2, item 16). **Done
+   2026-11-19.** The line beside the mode's dispatch picker names its sites as a template's
+   header does — *dispatched from source (body pos 2)* — where it gave only their number: the
+   first three, then how many more, with every one in the line's tooltip (`Modes.dispatchNote`;
+   `ModesTest`).
+3. **A closing table** for this design: every rung, as first driven and as driven now. **Done
+   2026-11-19, §7.20.**
 
 **Then what was ruled.**
 
@@ -1493,3 +1506,45 @@ reading a name no declaration names is refused at compile (`ReferenceCheck.decla
   often the idiom is wanted and in what shape.
 - **18** is a trial for the owner; **19** waits on design 18; **21**, B′, is the largest and
   least certain piece of new surface left, and waits until the rest is measured.
+
+### 7.20 Every rung, as first driven and as driven now — 2026-11-19
+
+Counted off the stories, as §1 counts them: an action is a click, a typed value or a pick from
+a box.
+
+| rung | fixture | first driven | now | what took it there |
+|---|---|---|---|---|
+| 1 | `strict_kv` | 77 | 58 | A, B, and what §7.7 counted after them |
+| 2 | `lexer_tokens` | 98 | 56 | A, B, and what §7.7 counted after them |
+| 3 | `classify_alerts` | 75 | 49 | A, B, and what §7.7 counted after them |
+| 4 | `library_parts` | 122 | 39 | F's regex exploded into the tree, H |
+| 5 | `text_019_single_line_split` | 158 | 121 | G, H, I |
+| 6 | `progressive_len_records` | 45 | 43 | the length offered its label |
+| | **all six** | **575** | **366** | **36% fewer** |
+
+Rungs 1 to 3 are as §7.7 counted them: nothing since has changed what their walks do. Rung 6
+was first driven after A to I were in, so its first count already had them.
+
+What is left of the cost is mostly typing — names, patterns and lines an author has to write
+anyway — and the idiom J would wrap, which is 28 of rung 5's 121 and waits on real DS3
+configurations (§7.19).
+
+### 7.21 A review of the small fixes, fixed — 2026-11-19
+
+A review of items 1 and 2 found nine faults. All nine are fixed, three of them as ruled
+2026-11-19. Each of the first six has a test that fails without its fix.
+
+| # | Fault | Fix | Test |
+|---|---|---|---|
+| 1 | The hint read only a `take`'s and a `read`'s labels, where a pattern part binds them too — a netstring's digits, labelled — and said no part before had one | **Ruled: include them.** A pattern part's tree is walked for its labels | `TestPartLabels.aPatternPartsLabelsAreOfferedTooAsTheEngineBindsThem` |
+| 2 | Any single label was filled in, though a length is read as an integer and a `take`'s label holds bytes | **Ruled: only an integer read fills.** Every label is listed; only a `read` cast to an integer is filled in | `TestPartLabels.onlyAReadOfAnIntegerIsFilledIn` |
+| 3 | A count the author typed was replaced by the label | Only nothing, or the count a new part starts with, is replaced | `TestPartLabels.theOneIntegerFillsALengthThatHoldsNoLabelYet` |
+| 4 | Taken from a count again, the field kept the label the editor had put there, and OK then refused it | What the fill replaced comes back | `ALengthFilledFromALabelGivesItsCountBack` |
+| 5 | The note counted dispatches but named instructions, so one named site could be said to *differ* among *their cards* | Says the dispatches differ, and to set it on each card | `ModesTest.twoDispatchesInOneInstructionAreOneSiteAndCanStillDiffer` |
+| 6 | Every site was named, however many | **Ruled: the first three, then how many more**; every one in the tooltip | `ModesTest.aModesDispatchNamesItsFirstSitesAndCountsTheRest` |
+| 7 | The mode pane walked the project twice to count its sites and then name them | One walk, `Modes.dispatchState` | — |
+| 8 | Three imports were left behind by the move | Gone | — |
+| 9 | Two new methods' comments said only their parameter | Say what they do | — |
+
+A regex leaf's named groups are labels too, and are still not offered: what a regex names is
+the regex parser's to say, and is not read out of its text in the editor.

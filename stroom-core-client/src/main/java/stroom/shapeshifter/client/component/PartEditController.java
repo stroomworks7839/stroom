@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.AlertEvent;
+import stroom.shapeshifter.client.model.PartLabels;
 import stroom.shapeshifter.client.model.ProjectText;
 import stroom.shapeshifter.config.BinaryCast;
 import stroom.shapeshifter.config.ConfigException;
@@ -33,6 +34,8 @@ import stroom.widget.popup.client.event.HidePopupRequestEvent;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
+import java.util.List;
+
 /// One part of a match sequence (design 39): a pattern, a take of a length, a seek by or to a
 /// length, or a read of a binary cast — with the label a take or read binds. A length is a
 /// count, a label's value, or a variable's. The pattern part is edited as its wire form here;
@@ -40,6 +43,13 @@ import com.google.web.bindery.event.shared.EventBus;
 public class PartEditController extends Controller {
 
     private final PartEdit view;
+    // The labels the parts before this one bind, and those sure to hold an integer: what a
+    // length can be taken from, and what is filled in for the author
+    private List<String> earlierLabels = List.of();
+    private List<String> earlierIntegers = List.of();
+    // What a fill replaced and what it filled, so that choosing a count again gives it back
+    private String beforeFill;
+    private String filledWith;
 
     public enum Kind {
         PATTERN("pattern"),
@@ -79,6 +89,43 @@ public class PartEditController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        view.setOnLengthKind(this::onLengthKind);
+    }
+
+    /// Says what the parts before this one bind, for its length to be taken from: listed under
+    /// the length when it is a label's value, and the one integer filled in. Called before
+    /// [#read], which says it.
+    ///
+    /// @param earlierLabels The labels the parts before this one bind ([PartLabels#before]).
+    /// @param earlierIntegers Those of them sure to hold an integer ([PartLabels#integersBefore]).
+    public void setEarlierLabels(final List<String> earlierLabels, final List<String> earlierIntegers) {
+        this.earlierLabels = earlierLabels;
+        this.earlierIntegers = earlierIntegers;
+    }
+
+    // A length taken from a label: the one integer an earlier part reads is the one, where there
+    // is one, and the hint says which labels there are. Taken from anything else again, what the
+    // fill replaced is back, if the fill is still what the field holds.
+    private void onLengthKind() {
+        if (view.getLengthKind() == LengthKind.LABEL) {
+            final String held = view.getLength();
+            final String next = PartLabels.filled(held, earlierIntegers);
+            if (!next.equals(held)) {
+                beforeFill = held;
+                filledWith = next;
+                view.setLength(next);
+            }
+        } else if (filledWith != null && filledWith.equals(view.getLength())) {
+            view.setLength(beforeFill);
+            filledWith = null;
+        }
+        hint();
+    }
+
+    private void hint() {
+        view.setLengthHint(view.getLengthKind() == LengthKind.LABEL
+                ? PartLabels.hint(earlierLabels)
+                : null);
     }
 
     /// A part to edit, or null for a new take.
@@ -112,6 +159,7 @@ public class PartEditController extends Controller {
                     ? ""
                     : read.label());
         }
+        hint();
     }
 
     private void length(final Length length) {

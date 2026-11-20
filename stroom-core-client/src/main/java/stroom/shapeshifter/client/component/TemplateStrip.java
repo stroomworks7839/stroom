@@ -497,14 +497,17 @@ public class TemplateStrip extends Component {
     /// @param enabled Whether it can be set here: there are sites, they agree, and the project
     ///                can be changed.
     /// @param note What is true of its dispatch, said beside the picker.
+    /// @param fullNote The same with every site named, for its tooltip.
     /// @param offer Whether to offer pointing the document's own dispatch at the mode.
     public void setModeDispatch(final Dispatch value, final boolean enabled, final String note,
-                                final boolean offer) {
+                                final String fullNote, final boolean offer) {
         // Never fires: the strip is set again after every edit, and a picker that answered
         // its own refresh would write the project back with each one.
         dispatch.setValue(value, false);
         dispatch.setEnabled(enabled);
         dispatchNote.setText(note);
+        // Every site, where the line names only the first
+        dispatchNote.setTitle(fullNote);
         dispatchLink.setVisible(offer);
     }
 

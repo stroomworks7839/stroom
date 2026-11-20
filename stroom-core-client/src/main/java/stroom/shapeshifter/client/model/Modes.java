@@ -171,6 +171,42 @@ public final class Modes {
         return only;
     }
 
+    /// The sites that dispatch into a mode, as the strip names them: the template and the
+    /// position in its body of the top-level instruction the site is, or sits inside —
+    /// `header_record (body pos 1)` — in the project's order.
+    ///
+    /// @param project The project.
+    /// @param mode The mode, or null for the templates with no mode.
+    /// @return The sites; none where nothing dispatches into the mode.
+    public static List<String> dispatchSites(final Project project, final String mode) {
+        final List<String> sites = new ArrayList<>();
+        for (final Template template : project.templates()) {
+            for (int i = 0; i < template.body().size(); i++) {
+                if (appliesInto(template.body().get(i), mode)) {
+                    sites.add(template.name() + " (body pos " + (i + 1) + ")");
+                }
+            }
+        }
+        return sites;
+    }
+
+    // Whether an instruction is, or holds, an apply-templates into a mode
+    private static boolean appliesInto(final OutputNode node, final String mode) {
+        if (node instanceof final OutputNode.ApplyTemplates apply) {
+            return Objects.equals(apply.directive().mode(), mode);
+        }
+        if (node instanceof final OutputNode.Holder holder) {
+            for (final List<OutputNode> body : holder.bodies()) {
+                for (final OutputNode inner : body) {
+                    if (appliesInto(inner, mode)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     /// Every mode something dispatches into, in one walk of the project.
     ///
     /// @param project The project.
@@ -262,22 +298,60 @@ public final class Modes {
     /// @return The state.
     public static DispatchState dispatchState(final Project project, final String mode) {
         final List<Dispatch> held = new ArrayList<>();
+        final List<String> named = new ArrayList<>();
         for (final Template template : project.templates()) {
-            mapApply(template.body(), directive -> {
-                if (Objects.equals(directive.mode(), mode)) {
-                    held.add(directive.dispatch());
+            final List<OutputNode> body = template.body();
+            for (int i = 0; i < body.size(); i++) {
+                // One walk names the sites as it counts them: the top-level instruction a site
+                // is, or sits inside, named once however many it holds
+                final int before = held.size();
+                mapApply(List.of(body.get(i)), directive -> {
+                    if (Objects.equals(directive.mode(), mode)) {
+                        held.add(directive.dispatch());
+                    }
+                    return directive;
+                });
+                if (held.size() > before) {
+                    named.add(template.name() + " (body pos " + (i + 1) + ")");
                 }
-                return directive;
-            });
+            }
         }
         if (!held.isEmpty()) {
             final boolean agreed = new HashSet<>(held).size() == 1;
             return new DispatchState(held.size(), agreed, agreed
                     ? held.get(0)
-                    : null, false, null);
+                    : null, false, null, named);
         }
         final String whyNot = whyNotFromDocument(project);
-        return new DispatchState(0, true, null, whyNot == null, whyNot);
+        return new DispatchState(0, true, null, whyNot == null, whyNot, List.of());
+    }
+
+    /// The most sites the line beside a mode's dispatch names before it counts the rest.
+    public static final int SITES_NAMED = 3;
+
+    /// What is true of a mode's dispatch, said beside its picker: that nothing dispatches into
+    /// it — the half of the two-part edit still to do (design 46 §5.4) — and, where the
+    /// document cannot simply be pointed at it, why not; or where it is dispatched from, the
+    /// first sites by name and the rest counted (design 47 §7.2, item 16); and that the
+    /// dispatches differ, which is why the picker sets nothing.
+    ///
+    /// @param state The mode's dispatch.
+    /// @param all Whether to name every site — for the line's tooltip — rather than the first.
+    /// @return What is said.
+    public static String dispatchNote(final DispatchState state, final boolean all) {
+        if (state.sites() == 0) {
+            return "nothing dispatches into this" + (state.reason() == null
+                    ? ""
+                    : " — " + state.reason());
+        }
+        final List<String> named = state.named();
+        final String sites = all || named.size() <= SITES_NAMED
+                ? String.join(", ", named)
+                : String.join(", ", named.subList(0, SITES_NAMED)) + " and "
+                  + (named.size() - SITES_NAMED) + " more";
+        return "dispatched from " + sites + (state.agreed()
+                ? ""
+                : " — the dispatches differ: set it on each card");
     }
 
     // Why the document's own dispatch cannot simply be pointed at a mode, or null when it can.
@@ -497,7 +571,8 @@ public final class Modes {
     /// @param dispatch The strategy they hold, where they agree: null for the project's.
     /// @param offered Whether pointing the document's own dispatch at the mode is on offer.
     /// @param reason Why it is not, where nothing dispatches into the mode and it is not.
-    public record DispatchState(int sites, boolean agreed, Dispatch dispatch, boolean offered, String reason) {
+    public record DispatchState(int sites, boolean agreed, Dispatch dispatch, boolean offered, String reason,
+                                List<String> named) {
 
     }
 }

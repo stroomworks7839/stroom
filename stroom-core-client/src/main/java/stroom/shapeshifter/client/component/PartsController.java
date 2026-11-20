@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.shapeshifter.client.model.PartLabels;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.MatchExpression;
@@ -166,6 +167,7 @@ public class PartsController
                 ? parts.size()
                 : selected + 1;
         final PartEditController editor = partEditorProvider.get();
+        editor.setEarlierLabels(PartLabels.before(parts, at), PartLabels.integersBefore(parts, at));
         editor.read(null);
         editor.show(this, "New Part", e -> {
             if (e.isOk()) {
@@ -192,6 +194,7 @@ public class PartsController
         }
         final int at = selected;
         final PartEditController editor = partEditorProvider.get();
+        editor.setEarlierLabels(PartLabels.before(parts, at), PartLabels.integersBefore(parts, at));
         editor.read(parts.get(at));
         editor.show(this, "Edit Part", e -> {
             if (e.isOk()) {

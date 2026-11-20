@@ -302,7 +302,8 @@ final class Walkthrough {
         play.waitFor(() -> play.expect(play.getByText("nothing dispatches into this",
                 ".template-strip__role-note")).toBeVisible());
         play.click(play.getByRole("button", StroomDom.button("dispatch from the document")));
-        play.waitFor(() -> play.expect(play.getByText("dispatched from 1 site",
+        // Named, as a template's header names its sites: the document, whatever it is called
+        play.waitFor(() -> play.expect(play.getByText(TextMatch.regex("^dispatched from .+ \\(body pos \\d+\\)$"),
                 ".template-strip__role-note")).toBeVisible());
         if (dispatch != null) {
             ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText(MODE_DISPATCH), dispatch);

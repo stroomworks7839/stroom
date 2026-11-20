@@ -298,6 +298,50 @@ class ModesTest {
     }
 
     @Test
+    void aModesSitesAreNamedByTemplateAndPlace() {
+        // Design 47 §7.2, item 16: the mode pane names where it is dispatched from, at any
+        // depth, by the top-level instruction the site is or sits inside
+        final Project project = new Project("p", 5, null, List.of(
+                template("doc", null, List.of(new OutputNode.Text("x"), apply("kv"))),
+                template("rec", "kv", List.of(new If(null, List.of(apply("cols"))))),
+                template("col", "cols", List.of())), null);
+
+        assertThat(Modes.dispatchSites(project, "kv")).containsExactly("doc (body pos 2)");
+        assertThat(Modes.dispatchSites(project, "cols")).containsExactly("rec (body pos 1)");
+        assertThat(Modes.dispatchSites(project, "nowhere")).isEmpty();
+    }
+
+    @Test
+    void aModesDispatchNamesItsFirstSitesAndCountsTheRest() {
+        // Five templates each dispatching into kv: three named, two counted, every one in the
+        // tooltip's
+        final Project project = new Project("p", 5, null, List.of(
+                template("a", null, List.of(apply("kv"))), template("b", null, List.of(apply("kv"))),
+                template("c", null, List.of(apply("kv"))), template("d", null, List.of(apply("kv"))),
+                template("e", null, List.of(new OutputNode.Text("x"), apply("kv")))), null);
+        final Modes.DispatchState state = Modes.dispatchState(project, "kv");
+
+        assertThat(Modes.dispatchNote(state, false))
+                .isEqualTo("dispatched from a (body pos 1), b (body pos 1), c (body pos 1) and 2 more");
+        assertThat(Modes.dispatchNote(state, true)).endsWith("e (body pos 2)");
+    }
+
+    @Test
+    void twoDispatchesInOneInstructionAreOneSiteAndCanStillDiffer() {
+        // An if holding two dispatches into kv with different strategies: named once, and
+        // the note says the dispatches differ without speaking of other sites
+        final Project project = new Project("p", 5, null, List.of(
+                template("rec", null, List.of(new If(null, List.of(apply("kv"), apply("kv", Dispatch.LEXER)))))),
+                null);
+        final Modes.DispatchState state = Modes.dispatchState(project, "kv");
+
+        assertThat(state.sites()).isEqualTo(2);
+        assertThat(state.named()).containsExactly("rec (body pos 1)");
+        assertThat(Modes.dispatchNote(state, false))
+                .isEqualTo("dispatched from rec (body pos 1) — the dispatches differ: set it on each card");
+    }
+
+    @Test
     void aNewDispatchGoesToTheOneModeNothingDispatchesInto() {
         // Design 47 I: rung 5 adds header_columns and goes straight to the card dispatching it
         final Project project = new Project("p", 5, null, List.of(

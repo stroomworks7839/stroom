@@ -216,14 +216,15 @@ public final class ShapeshifterLenRecordsStories {
         play.waitFor(() -> play.expect(play.querySelector(PART_KIND)).toHaveTextContent("read"));
     }
 
-    /// §6.5 step 7. The name: a `take` as long as the value `len` holds. Its Length is typed —
-    /// nothing offers the labels an earlier part has defined (design 46 §6.5's question).
+    /// §6.5 step 7. The name: a `take` as long as the value `len` holds. Taken from a label, the
+    /// length is the one label the part before defines, and says which there are (design 47
+    /// §7.19): it is not typed.
     private static void name(final Play play, final Play screen) {
         play.click(play.getByRole("button", TextMatch.containing("Add a part after the selected one")));
         final Play dialog = ShapeshifterEditorStories.dialogMatching(play, screen, "New Part");
         ShapeshifterEditorStories.pickFromBox(play, screen, dialog.getByLabelText("Length from"), "label's value");
-        play.clear(dialog.getByLabelText("Length value"));
-        dialog.type(dialog.getByLabelText("Length value"), "len");
+        play.waitFor(() -> play.expect(dialog.getByLabelText("Length value")).toHaveValue("len"));
+        play.expect(dialog.getByText("Labelled by the parts before this one: len")).toBeVisible();
         dialog.type(dialog.getByLabelText("Label"), "name");
         ok(play, screen, "New Part");
         play.waitFor(() -> play.expect(play.querySelectorAll(PART_KIND).textContents())

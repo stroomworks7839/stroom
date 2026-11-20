@@ -32,9 +32,6 @@ import stroom.shapeshifter.client.model.TraceModel;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.MatchExpression;
-import stroom.shapeshifter.config.OutputNode;
-import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
-import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
@@ -238,10 +235,10 @@ public class TemplateStripController extends Controller {
                 ? "1 template"
                 : rows.size() + " templates", "");
         final Modes.DispatchState state = project == null
-                ? new Modes.DispatchState(0, true, null, false, null)
+                ? new Modes.DispatchState(0, true, null, false, null, List.of())
                 : Modes.dispatchState(project, mode);
         view.setModeDispatch(state.dispatch(), !readOnly && state.sites() > 0 && state.agreed(),
-                dispatchNote(state), !readOnly && state.offered());
+                Modes.dispatchNote(state, false), Modes.dispatchNote(state, true), !readOnly && state.offered());
         view.setNameEditable(!readOnly, "Edit the name", "Mode name");
         view.setRole(false, MatchRole.RECORD, false, "", false);
         view.setMatchVisible(false);
@@ -254,24 +251,6 @@ public class TemplateStripController extends Controller {
             // Read only now: the name being typed went with the field
             closeTitle();
         }
-    }
-
-    // What is true of a mode's dispatch, said beside its picker: that nothing dispatches into
-    // it — the half of the two-part edit still to do (design 46 §5.4) — and, where the
-    // document cannot simply be pointed at it, why not and what to do instead; or how many
-    // sites do; or that they differ, which is why the picker sets nothing.
-    private static String dispatchNote(final Modes.DispatchState state) {
-        if (state.sites() == 0) {
-            return "nothing dispatches into this" + (state.reason() == null
-                    ? ""
-                    : " — " + state.reason());
-        }
-        final String sites = "dispatched from " + state.sites() + (state.sites() == 1
-                ? " site"
-                : " sites");
-        return state.agreed()
-                ? sites
-                : sites + ", which differ: set it on their cards";
     }
 
     /// The mode's own way out of the two-part edit (design 47 C): the document's
@@ -765,38 +744,13 @@ public class TemplateStripController extends Controller {
     /// The static complement to breadcrumb ancestry: the sites whose apply-templates dispatch
     /// into this template's mode — "record (body pos 3)" — or the document for the root.
     static String dispatchedFrom(final Project project, final Template template) {
-        final List<String> sites = new ArrayList<>();
-        for (final Template t : project.templates()) {
-            // "body pos" is the instruction's position among the body's top-level instructions,
-            // whether the site is that instruction or sits inside its branches.
-            for (int i = 0; i < t.body().size(); i++) {
-                if (appliesInto(t.body().get(i), template.mode())) {
-                    sites.add(t.name() + " (body pos " + (i + 1) + ")");
-                }
-            }
-        }
+        final List<String> sites = new ArrayList<>(Modes.dispatchSites(project, template.mode()));
         if (template.mode() == null) {
             sites.add(0, "the document");
         }
         return sites.isEmpty()
                 ? "nothing applies into mode " + Modes.label(template.mode())
                 : String.join(", ", sites);
-    }
-
-    private static boolean appliesInto(final OutputNode node, final String mode) {
-        if (node instanceof ApplyTemplates apply) {
-            return Objects.equals(apply.directive().mode(), mode);
-        }
-        if (node instanceof Holder holder) {
-            for (final List<OutputNode> body : holder.bodies()) {
-                for (final OutputNode inner : body) {
-                    if (appliesInto(inner, mode)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     /// The guard's verdicts from the run (design 18 §5.6): at the cursor, when the cursor's body

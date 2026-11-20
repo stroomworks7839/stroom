@@ -311,7 +311,8 @@ public final class ShapeshifterTemplateStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText(KV_MODE)).toBeVisible());
                     play.click(play.getByText(KV_MODE));
-                    play.waitFor(() -> play.expect(play.getByText("dispatched from 1 site",
+                    // It names where it is dispatched from, as a template's header does
+                    play.waitFor(() -> play.expect(play.getByText("dispatched from source (body pos 2)",
                             ".template-strip__role-note")).toBeVisible());
                     // It is dispatched already, so there is nothing to offer
                     play.expect(play.queryByRole("button", StroomDom.button("dispatch from the document")))
@@ -638,6 +639,36 @@ public final class ShapeshifterTemplateStories {
                     play.expect(play.getByLabelText(MODE)).toBeVisible();
                     play.expect(play.getByText(KV_MODE)).toBeVisible();
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                })
+                // A length taken from a label is filled with the one integer the parts before read,
+                // and taken from a count again it is the count it was: the label was the editor's,
+                // not the author's (design 47 §7.19)
+                .story("ALengthFilledFromALabelGivesItsCountBack", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "framed");
+                    play.waitFor(() -> play.expect(play.querySelector(ShapeshifterEditorStories.MATCH_CHIP))
+                            .not().toBeNull());
+                    play.click(ShapeshifterEditorStories.workbenchButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(".parts__kind")).toBeVisible());
+                    play.click(play.querySelector(".parts__kind"));
+                    // A read of a uint8 labelled n, first
+                    play.click(play.getByRole("button", TextMatch.containing("Add a part after the selected one")));
+                    final Play read = ShapeshifterEditorStories.dialogMatching(play, screen, "New Part");
+                    ShapeshifterEditorStories.pickFromBox(play, screen, read.getByLabelText("Kind"), "read");
+                    read.type(read.getByLabelText("Label"), "n");
+                    play.click(read.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(screen.queryByText(TextMatch.regex("New Part", "i"),
+                            StroomDom.DIALOG_TITLE)).toBeNull());
+                    // Then a part after it, whose length is taken from n, and then from a count
+                    play.click(play.getByRole("button", TextMatch.containing("Add a part after the selected one")));
+                    final Play part = ShapeshifterEditorStories.dialogMatching(play, screen, "New Part");
+                    ShapeshifterEditorStories.pickFromBox(play, screen, part.getByLabelText("Length from"),
+                            "label's value");
+                    play.waitFor(() -> play.expect(part.getByLabelText("Length value")).toHaveValue("n"));
+                    ShapeshifterEditorStories.pickFromBox(play, screen, part.getByLabelText("Length from"), "count");
+                    play.waitFor(() -> play.expect(part.getByLabelText("Length value")).toHaveValue("1"));
+                    play.expect(part.queryByText(TextMatch.containing("Labelled by"))).toBeNull();
                 })
                 // A delimiter is written on the match line, as a regex is (design 47 G): its
                 // kind, then its separator, which arrives as a new one does - a newline,
