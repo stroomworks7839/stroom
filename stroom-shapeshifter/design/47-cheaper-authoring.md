@@ -1517,7 +1517,14 @@ reading a name no declaration names is refused at compile (`ReferenceCheck.decla
 5. **The workbench leak check — ruled: retry before failing.** A story that fails only the leak
    check is run again, alone, before it is reported; a real leak fails both times. It misread
    more than thirty healthy stories this session whenever other work loaded the machine. It is
-   the shared test runner's, so it is its own change.
+   the shared test runner's, so it is its own change. **Done 2026-11-20.** A story whose play
+   and every other check passed, and whose leak check then failed — a leak, or the screen not
+   opening again in time — is held back, and once every other story has run it is run again,
+   one at a time. Passing alone it is reported as flaky, with the failed attempt kept; failing
+   again, it fails with both (`run.mjs` `runAgainAlone`, `outcome.mjs` `failedOnlyLeakCheck`
+   and `withAttempt`, the runner's README). Proved with a fault put in for the purpose: every
+   card story's first leak check failed, 24 passed alone, and the one made to fail each time
+   failed on both attempts with both screenshots kept.
 
 **Left as they are.**
 

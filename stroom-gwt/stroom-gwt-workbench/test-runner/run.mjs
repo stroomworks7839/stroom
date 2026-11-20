@@ -38,7 +38,8 @@ import { TIMED_OUT, withDeadline } from './lib/deadline.mjs';
 import { selectStories } from './lib/filter.mjs';
 import { toJUnitXml } from './lib/junit.mjs';
 import {
-  decideOutcome, DONE_STATUSES, errorRepeatsPageOrConsoleError, formatMillis, isFailure, runWithRetries,
+  decideOutcome, DONE_STATUSES, errorRepeatsPageOrConsoleError, failedOnlyLeakCheck, formatMillis, isFailure,
+  runWithRetries, withAttempt,
 } from './lib/outcome.mjs';
 import { judgeLeak, measureLeak, withLeakProbe } from './lib/leak-check.mjs';
 import { judgeA11y, measureA11y, readBaseline, updateBaseline, writeBaseline } from './lib/a11y-check.mjs';
@@ -512,10 +513,10 @@ async function checkForLeak(page, story, options, result) {
     result.leak = leak;
     const error = judgeLeak(leak);
     if (error) {
-      Object.assign(result, { status: 'FAIL', error });
+      Object.assign(result, { status: 'FAIL', error, leakCheckFailed: true });
     }
   } catch (error) {
-    Object.assign(result, { status: 'FAIL', error: firstLine(error) });
+    Object.assign(result, { status: 'FAIL', error: firstLine(error), leakCheckFailed: true });
   }
 }
 
@@ -632,6 +633,30 @@ function screenshotsDir(options) {
 // <id>.attempt-<n>.png; the last attempt's is then renamed to <id>.png.
 async function runStoryWithRetries(browsers, story, options) {
   const result = await runWithRetries((attempt) => runStory(browsers, story, options, attempt), options.retries);
+  return keepLastScreenshot(result, story, options);
+}
+
+// Runs a story that failed only its leak check once more, with nothing else running, before it is
+// reported: a loaded machine is slow to collect garbage and to open a screen again, so the check
+// can fail a screen that doesn't leak, while a real leak fails both times. A story that passes
+// is reported as flaky.
+async function runAgainAlone(browsers, story, options, result) {
+  // The failed attempt's screenshot keeps its attempt's name, as the new one will be <id>.png
+  if (result.screenshot) {
+    const file = screenshotFile(screenshotsDir(options), story.id, result.attempts);
+    try {
+      await rename(result.screenshot, file);
+      result.screenshot = file;
+    } catch {
+      // Keep its name
+    }
+  }
+  const again = await runStory(browsers, story, options, result.attempts + 1);
+  return keepLastScreenshot(Object.assign(withAttempt(result, again), { ranAgainAlone: true }), story, options);
+}
+
+// The last attempt's screenshot renamed to <id>.png
+async function keepLastScreenshot(result, story, options) {
   if (result.screenshot) {
     const file = screenshotFile(screenshotsDir(options), story.id);
     try {
@@ -670,7 +695,8 @@ function printComponent(title, results, verbose) {
 function printFailure(result) {
   console.log(`\n  ● ${result.title} › ${result.name}  [${result.id}]\n`);
   if (result.attempts > 1) {
-    console.log(`    Failed on all ${result.attempts} attempts`);
+    console.log(`    Failed on all ${result.attempts} attempts${result.ranAgainAlone
+      ? ', the last run again alone, as it had failed only its leak check' : ''}`);
   }
   if (result.failedStep) {
     console.log(`    Failed step: ${result.failedStep}`);
@@ -709,7 +735,8 @@ function printNotes(result) {
 }
 
 function printFlaky(result) {
-  console.log(`\n  ● ${result.title} › ${result.name}  [${result.id}] passed on attempt ${result.attempts}`);
+  console.log(`\n  ● ${result.title} › ${result.name}  [${result.id}] passed on attempt ${result.attempts}`
+    + (result.ranAgainAlone ? ', run again alone, as it had failed only its leak check' : ''));
   result.previousAttempts.forEach((attempt, i) => {
     console.log(`    Attempt ${i + 1}: ${attempt.status}${attempt.failedStep ? ` at ${attempt.failedStep}` : ''}`
       + ` - ${(attempt.error ?? '').split('\n')[0]}`
@@ -870,6 +897,9 @@ async function main() {
     const remainingByTitle = new Map();
     stories.forEach((story) => remainingByTitle.set(story.title, (remainingByTitle.get(story.title) ?? 0) + 1));
     const printed = new Set();
+    // The stories that failed only their leak check, to run again alone once the rest have run;
+    // their components are listed once they have
+    const leakSuspects = [];
     let next = 0;
 
     const onDone = (index) => {
@@ -903,13 +933,28 @@ async function main() {
           break;
         }
         results[index] = result;
-        onDone(index);
+        if (options.leakCheck && failedOnlyLeakCheck(result)) {
+          leakSuspects.push(index);
+        } else {
+          onDone(index);
+        }
       }
     };
 
     let runError = null;
     try {
       await Promise.all(Array.from({ length: Math.min(options.workers, stories.length) }, worker));
+      if (leakSuspects.length > 0 && !cancelledBy && !browsers.failure) {
+        console.log(`\nRunning ${leakSuspects.length} ${leakSuspects.length === 1 ? 'story' : 'stories'} `
+          + 'again, one at a time, as each failed only its leak check\n');
+      }
+      for (const index of leakSuspects) {
+        if (cancelledBy || browsers.failure) {
+          break;
+        }
+        results[index] = await runAgainAlone(browsers, stories[index], options, results[index]);
+        onDone(index);
+      }
     } catch (error) {
       runError = error.stack ?? String(error);
     }

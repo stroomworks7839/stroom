@@ -282,7 +282,11 @@ opens it again, 2 times to warm up and then 8 times (`--leak-cycles N`), measuri
 and event listeners left after each close (once garbage has been collected). The story fails if
 each close keeps more than 20 nodes or 5 listeners on average. A story that seems to leak is
 measured again, waiting 1.5 s after each close, since e.g. a deferred command keeps a closed
-screen until it has run; only if it still leaks does it fail. Stories that don't open their screen
+screen until it has run; only if it still leaks does it fail. A story that fails only its leak check
+(a leak, or the screen not opening again in time) is held back and, once every other story has run,
+run again alone, one at a time: a loaded machine is slow to collect garbage and to open a screen,
+which can fail a screen that doesn't leak, while a real leak fails both times. One that passes alone
+is reported as flaky. Stories that don't open their screen
 with `afterStartUp`, or show nothing from it, aren't checked (`-v` shows each story's growth per
 close, or why it wasn't checked).
 

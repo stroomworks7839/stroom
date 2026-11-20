@@ -28,7 +28,7 @@ import { escapeXml, toJUnitXml } from './junit.mjs';
 import { growthPerCycle, judgeLeak, unownedGrowth, withLeakProbe } from './leak-check.mjs';
 import { judgeA11y, updateBaseline } from './a11y-check.mjs';
 import { judgeContentFocus } from './focus-check.mjs';
-import { decideOutcome, runWithRetries } from './outcome.mjs';
+import { decideOutcome, failedOnlyLeakCheck, runWithRetries, withAttempt } from './outcome.mjs';
 import { safeFileBase, screenshotFile } from './screenshots.mjs';
 import { mergeChecks, unknownCheckIds } from './real-input/index.mjs';
 
@@ -196,6 +196,31 @@ test('retries', async () => {
   const passing = await runWithRetries(runner(['PASS']), 3);
   assert.deepEqual([passing.status, passing.flaky, passing.attempts, passing.previousAttempts, passing.durationMs],
     ['PASS', false, 1, [], 10]);
+});
+
+test('a story that failed only its leak check, run again alone', async () => {
+  const attempt = (status, n, extra = {}) => ({ status, error: `attempt ${n}`, durationMs: 10 * n, pageErrors: [],
+    consoleErrors: [], screenshot: `s.attempt-${n}.png`, ...extra });
+  // Only a leak check's failure is run again: not a play's, nor a pass
+  assert.equal(failedOnlyLeakCheck(attempt('FAIL', 1, { leakCheckFailed: true })), true);
+  assert.equal(failedOnlyLeakCheck(attempt('FAIL', 1)), false);
+  assert.equal(failedOnlyLeakCheck(attempt('ERROR', 1, { leakCheckFailed: true })), false);
+  assert.equal(failedOnlyLeakCheck(attempt('PASS', 1)), false);
+
+  // Passing alone, it is flaky, with the failed attempt kept
+  const first = await runWithRetries(async () => attempt('FAIL', 1, { leakCheckFailed: true }), 0);
+  const passed = withAttempt(first, attempt('PASS', 2));
+  assert.deepEqual([passed.status, passed.flaky, passed.attempts, passed.durationMs, passed.attemptDurationsMs],
+    ['PASS', true, 2, 30, [10, 20]]);
+  assert.deepEqual(passed.previousAttempts.map((a) => [a.status, a.error, a.durationMs, a.screenshot]),
+    [['FAIL', 'attempt 1', 10, 's.attempt-1.png']]);
+
+  // After --retries, every earlier attempt is kept with its own time, and a real leak fails again
+  const retried = await runWithRetries((n) => Promise.resolve(attempt('FAIL', n, { leakCheckFailed: true })), 1);
+  const failed = withAttempt(retried, attempt('FAIL', 3, { leakCheckFailed: true }));
+  assert.deepEqual([failed.status, failed.flaky, failed.attempts, failed.durationMs, failed.attemptDurationsMs],
+    ['FAIL', false, 3, 60, [10, 20, 30]]);
+  assert.deepEqual(failed.previousAttempts.map((a) => [a.error, a.durationMs]), [['attempt 1', 10], ['attempt 2', 20]]);
 });
 
 test('screenshot files', () => {

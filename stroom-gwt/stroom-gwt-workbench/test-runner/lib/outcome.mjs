@@ -106,17 +106,43 @@ export async function runWithRetries(runOnce, retries) {
   const previousAttempts = [];
   let result = await runOnce(1);
   while (isFailure(result) && previousAttempts.length < retries) {
-    previousAttempts.push({
-      status: result.status,
-      durationMs: result.durationMs,
-      failedStep: result.failedStep,
-      error: result.error,
-      pageErrors: result.pageErrors,
-      consoleErrors: result.consoleErrors,
-      screenshot: result.screenshot,
-    });
+    previousAttempts.push(attemptDetails(result, result.durationMs));
     result = await runOnce(previousAttempts.length + 1);
   }
+  return withAttempts(result, previousAttempts);
+}
+
+// Whether a result failed its leak check and nothing else: its play passed, and so did every
+// check before the leak check (see run.mjs), so that what failed is the measure most at the mercy
+// of a loaded machine. Its other checks are done again when it is run again alone.
+export function failedOnlyLeakCheck(result) {
+  return result.status === 'FAIL' && result.leakCheckFailed === true;
+}
+
+// The result of running a story once more after runWithRetries, as one more attempt: again is
+// that attempt's result, and result the one it follows. As runWithRetries, again gains attempts,
+// previousAttempts (result's, then result itself), attemptDurationsMs and flaky, and its
+// durationMs becomes the total.
+export function withAttempt(result, again) {
+  const durations = result.attemptDurationsMs ?? [result.durationMs];
+  const earlier = result.previousAttempts ?? [];
+  return withAttempts(again, [...earlier, attemptDetails(result, durations[durations.length - 1])]);
+}
+
+// What is kept of a failed attempt, which took durationMs
+function attemptDetails(result, durationMs) {
+  return {
+    status: result.status,
+    durationMs,
+    failedStep: result.failedStep,
+    error: result.error,
+    pageErrors: result.pageErrors,
+    consoleErrors: result.consoleErrors,
+    screenshot: result.screenshot,
+  };
+}
+
+function withAttempts(result, previousAttempts) {
   result.attemptDurationsMs = [...previousAttempts.map((attempt) => attempt.durationMs), result.durationMs];
   result.durationMs = result.attemptDurationsMs.reduce((sum, millis) => sum + (millis ?? 0), 0);
   result.attempts = previousAttempts.length + 1;
