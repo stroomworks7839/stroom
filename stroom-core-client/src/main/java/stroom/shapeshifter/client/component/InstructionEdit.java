@@ -64,11 +64,15 @@ public class InstructionEdit extends Component {
     };
     private Runnable onFieldTyped = () -> {
     };
+    private Consumer<String> onSubscript = subscript -> {
+    };
 
     @UiField
     FlowPanel form;
     @UiField
     LinkButton declare;
+    @UiField
+    FlowPanel subscripts;
     @UiField
     LinkButton ok;
     @UiField
@@ -214,6 +218,28 @@ public class InstructionEdit extends Component {
             declare.setText("declare " + name + " here");
             declare.setTitle("Declare " + name + " on this template, as a scalar");
         }
+    }
+
+    /// Offers what may follow the Select to say which of a list's entries it reads, or nothing.
+    ///
+    /// @param offered The subscripts, in order; empty for none.
+    public void setSubscripts(final List<String> offered) {
+        subscripts.clear();
+        for (final String subscript : offered) {
+            final LinkButton add = new LinkButton(subscript);
+            add.addStyleName("add-button instruction-edit__subscript");
+            add.setTitle("Add " + subscript + " after the name, to say which of the list's entries is read");
+            add.setOnClick(() -> onSubscript.accept(subscript));
+            subscripts.add(add);
+        }
+        subscripts.setVisible(!offered.isEmpty());
+    }
+
+    /// Sets what is told when an offer made by [#setSubscripts] is taken.
+    ///
+    /// @param onSubscript Told the subscript taken.
+    public void setOnSubscript(final Consumer<String> onSubscript) {
+        this.onSubscript = onSubscript;
     }
 
     /// @param onDeclare Told when the offer to declare is taken.

@@ -23,6 +23,7 @@ import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Choose;
 import stroom.shapeshifter.config.OutputNode.Element;
 import stroom.shapeshifter.config.OutputNode.ForEach;
+import stroom.shapeshifter.config.OutputNode.ForEachGroup;
 import stroom.shapeshifter.config.OutputNode.If;
 import stroom.shapeshifter.config.OutputNode.Order;
 import stroom.shapeshifter.config.OutputNode.Sort;
@@ -55,6 +56,26 @@ class BodiesTest {
             A,
             new If(FIRST, List.of(B)),
             new Choose(List.of(new WhenBranch(FIRST, List.of(C))), List.of(new Element("e", null, false, List.of(A)))));
+
+    @Test
+    void aListIsIteratedWhereAForEachOrAGroupingHoldsItAtAnyDepth() {
+        final List<OutputNode> body = List.of(
+                A,
+                new ForEach(ProjectJson.readRefOrName("xs"), "x", null, List.of(),
+                        List.of(new If(FIRST, List.of(B)))),
+                new ForEachGroup(ProjectJson.readRefOrName("xs"), null, List.of(C)),
+                new If(FIRST, List.of(C)));
+
+        // The body itself, and an if's branch at the top, are not
+        assertThat(Bodies.iterated(body, new int[0])).isFalse();
+        assertThat(Bodies.iterated(body, new int[]{3, 0})).isFalse();
+        // A for-each's body, an if within it, and a grouping's body are
+        assertThat(Bodies.iterated(body, new int[]{1, 0})).isTrue();
+        assertThat(Bodies.iterated(body, new int[]{1, 0, 0, 0})).isTrue();
+        assertThat(Bodies.iterated(body, new int[]{2, 0})).isTrue();
+        // A path that is no longer there is not
+        assertThat(Bodies.iterated(body, new int[]{9, 0})).isFalse();
+    }
 
     @Test
     void pathsAddressCardsAndLists() {

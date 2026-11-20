@@ -51,6 +51,64 @@ class TestTemplates {
     }
 
     @Test
+    void theListsAreTheDeclaredNamesThatHoldAList() {
+        // Rung 5: heading on the document is a list, record_body on a record is not, and a
+        // set or a map has no entry a match count says
+        final Template document = template("document", List.of(
+                new Declaration("heading", Type.LIST), new Declaration("seen", Type.SET)));
+        final Template record = template("data_record", List.of(
+                new Declaration("record_body", Type.SCALAR), new Declaration("cells", Type.LIST),
+                new Declaration("heading", Type.LIST)));
+        final Project project = new Project("p", 5, null, List.of(document, record), null);
+
+        assertThat(Templates.declaredLists(project, record)).containsExactly("cells", "heading");
+        assertThat(Templates.declaredLists(null, null)).isEmpty();
+    }
+
+    @Test
+    void aSelectNamingAListIsOfferedWhichEntryItReads() {
+        final List<String> lists = List.of("heading");
+        // design 44 Q14: the nth of these goes with the nth of those
+        assertThat(Templates.subscriptsAfter(lists, "heading", true))
+                .containsExactly("[matchCount()]", "[index()]");
+        assertThat(Templates.subscriptsAfter(lists, " heading ", true))
+                .containsExactly("[matchCount()]", "[index()]");
+    }
+
+    @Test
+    void indexIsOfferedOnlyWhereAnIterationSetsIt() {
+        // Outside one, heading[index()] would read the first entry every time
+        assertThat(Templates.subscriptsAfter(List.of("heading"), "heading", false))
+                .containsExactly("[matchCount()]");
+    }
+
+    @Test
+    void aSelectThatIsNotAListsPlainNameIsOfferedNothing() {
+        final List<String> lists = List.of("heading");
+        // Says which entry already
+        assertThat(Templates.subscriptsAfter(lists, "heading[matchCount()]", true)).isEmpty();
+        assertThat(Templates.subscriptsAfter(lists, "heading[2]", true)).isEmpty();
+        // Not a list, or not a name
+        assertThat(Templates.subscriptsAfter(lists, "record_body", true)).isEmpty();
+        assertThat(Templates.subscriptsAfter(lists, "$1", true)).isEmpty();
+        assertThat(Templates.subscriptsAfter(lists, "head", true)).isEmpty();
+        assertThat(Templates.subscriptsAfter(lists, "", true)).isEmpty();
+        assertThat(Templates.subscriptsAfter(lists, null, true)).isEmpty();
+        // Two names joined are not one name
+        assertThat(Templates.subscriptsAfter(lists, "heading heading", true)).isEmpty();
+    }
+
+    @Test
+    void anOfferedSubscriptReadsBackAsTheMatchIndexItSays() {
+        // What the offer writes is what the Select's own reader takes for a match index, so
+        // taking it can never leave the card unsaveable
+        for (final String subscript : Templates.subscriptsAfter(List.of("heading"), "heading", true)) {
+            final String spelt = "heading" + subscript;
+            assertThat(Instructions.ref(Instructions.read(spelt))).as(spelt).isEqualTo(spelt);
+        }
+    }
+
+    @Test
     void theTemplatesOwnNamesComeFirstAndEachNameOnce() {
         final Template document = template("document", List.of(
                 new Declaration("heading", Type.LIST), new Declaration("shared", Type.SCALAR)));

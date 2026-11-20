@@ -28,6 +28,7 @@ import stroom.gwt.workbench.framework.client.story.StoryRegistry;
 import com.google.gwt.dom.client.Element;
 
 import java.util.Arrays;
+import java.util.List;
 
 /// A card edited where it is (design 47 D): clicked, a card's line gives way to its editor — the
 /// kind first, then that kind's fields — in the list, with no dialog over it. What the editor
@@ -401,6 +402,82 @@ public final class ShapeshifterCardStories {
                     ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"),
                             "apply-templates");
                     play.waitFor(() -> play.expect(card.getByLabelText("Mode")).toHaveValue("kv"));
+                })
+                // A Select naming a declared list is offered which entry it reads: one press, and
+                // the subscript follows the name with the keyboard back in the field (design 44
+                // Q14). A scalar is offered nothing, nor is a Select that is the collection taken
+                // whole; and at the top of a body, where no for-each sets it, nor is [index()]
+                .story("ASelectNamingAListIsOfferedWhichEntry", context -> ShapeshifterEditorStories.render(context,
+                        false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.click(play.findByRole("button", "+ declaration"));
+                    final Play dialog = ShapeshifterEditorStories.dialogMatching(play, screen, "New Declaration");
+                    dialog.type(dialog.getByLabelText("Name"), "cells");
+                    ShapeshifterEditorStories.pickFromBox(play, screen, dialog.getByLabelText("Type"), "list");
+                    play.click(dialog.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(play.getByRole("button", StroomDom.button("cells")))
+                            .toBeVisible());
+                    // The collection a for-each walks, a for-each-group files and an
+                    // apply-templates dispatches is the whole list
+                    ShapeshifterEditorStories.newCard(play, screen, "for-each");
+                    final Play card = ShapeshifterEditorStories.cardEditor(play);
+                    for (final String whole : List.of("for-each", "for-each-group", "apply-templates")) {
+                        ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"),
+                                whole);
+                        play.waitFor(() -> play.expect(card.getByLabelText("Select")).toBeVisible());
+                        card.type(card.getByLabelText("Select"), "cells");
+                        play.expect(card.queryByRole("button", StroomDom.button("[matchCount()]"))).toBeNull();
+                    }
+                    ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"),
+                            "value-of");
+                    // line is declared, as a scalar
+                    card.type(card.getByLabelText("Select"), "line");
+                    play.expect(card.queryByRole("button", StroomDom.button("[matchCount()]"))).toBeNull();
+                    card.clear(card.getByLabelText("Select"));
+                    card.type(card.getByLabelText("Select"), "cells");
+                    play.waitFor(() -> play.expect(card.getByRole("button", StroomDom.button("[matchCount()]")))
+                            .toBeVisible());
+                    play.expect(card.queryByRole("button", StroomDom.button("[index()]"))).toBeNull();
+                    play.click(card.getByRole("button", StroomDom.button("[matchCount()]")));
+                    play.waitFor(() -> play.expect(card.getByLabelText("Select")).toHaveValue("cells[matchCount()]"));
+                    play.expect(card.getByLabelText("Select")).toHaveFocus();
+                    // It says which entry now, so there is nothing more to offer
+                    play.expect(card.queryByRole("button", StroomDom.button("[matchCount()]"))).toBeNull();
+                })
+                // Inside a for-each, index() is set, so [index()] is offered too, and taken
+                .story("ASelectInAForEachIsOfferedItsIndex", context -> ShapeshifterEditorStories.render(context,
+                        false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.click(play.findByRole("button", "+ declaration"));
+                    final Play dialog = ShapeshifterEditorStories.dialogMatching(play, screen, "New Declaration");
+                    dialog.type(dialog.getByLabelText("Name"), "cells");
+                    ShapeshifterEditorStories.pickFromBox(play, screen, dialog.getByLabelText("Type"), "list");
+                    play.click(dialog.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(play.getByRole("button", StroomDom.button("cells")))
+                            .toBeVisible());
+                    // A for-each over the list, taken; the card that opens after it is left
+                    ShapeshifterEditorStories.newCard(play, screen, "for-each");
+                    final Play walk = ShapeshifterEditorStories.cardEditor(play);
+                    play.waitFor(() -> play.expect(walk.getByLabelText("Select")).toBeVisible());
+                    walk.type(walk.getByLabelText("Select"), "cells");
+                    walk.type(walk.getByLabelText("As"), "c");
+                    play.click(walk.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(walk.getByLabelText("Instruction")).toHaveValue("auto"));
+                    play.keyboard("{Escape}");
+                    // The for-each's own list is the first of the two that end with + instruction
+                    play.click(play.getAllByTitle(ShapeshifterEditorStories.ADD_LINK).nth(0));
+                    final Play card = ShapeshifterEditorStories.cardEditor(play);
+                    ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"),
+                            "value-of");
+                    card.type(card.getByLabelText("Select"), "cells");
+                    play.waitFor(() -> play.expect(card.getByRole("button", StroomDom.button("[index()]")))
+                            .toBeVisible());
+                    play.click(card.getByRole("button", StroomDom.button("[index()]")));
+                    play.waitFor(() -> play.expect(card.getByLabelText("Select")).toHaveValue("cells[index()]"));
                 })
                 // The offer to declare follows what the Name holds however it got there: a
                 // paste with the pointer types nothing (design 47 §7.16)

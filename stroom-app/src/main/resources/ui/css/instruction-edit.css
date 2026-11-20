@@ -65,3 +65,17 @@
     margin-bottom: 6px;
     white-space: nowrap;
 }
+
+/* What may follow a Select naming a declared list (design 44 Q14): under the name it follows,
+   where the eye already is. */
+.instruction-edit .instruction-edit__subscripts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 14px;
+    margin-top: 2px;
+}
+
+.instruction-edit .instruction-edit__subscript {
+    min-height: 24px;
+    white-space: nowrap;
+}

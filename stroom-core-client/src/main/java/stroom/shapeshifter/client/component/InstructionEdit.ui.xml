@@ -17,7 +17,12 @@
                 </g:FlowPanel>
             </form:FormGroup>
             <form:FormGroup ui:field="field0Group" addStyleNames="instruction-edit__group" identity="ssInstrF0" label="">
-                <form:TextBox ui:field="field0" addStyleNames="w-100"/>
+                <g:FlowPanel>
+                    <form:TextBox ui:field="field0" addStyleNames="w-100"/>
+                    <!-- A Select naming a declared list: what may follow the name to say which
+                         entry is read (design 44 Q14), under the name it follows. -->
+                    <g:FlowPanel ui:field="subscripts" styleName="instruction-edit__subscripts" visible="false"/>
+                </g:FlowPanel>
             </form:FormGroup>
             <!-- A variable naming what nothing declares yet: the way to declare it, on this
                  template, as a scalar (design 47 I). A list's place is a decision, so a list

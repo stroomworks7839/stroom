@@ -110,6 +110,24 @@ public final class Bodies {
         return at;
     }
 
+    /// Whether a `for-each` or a `for-each-group` holds the card list at a list path, at any
+    /// depth: where the engine counts a read of `index()` as inside an iteration, so that
+    /// something sets it. A template's own body is not, whatever dispatched into it.
+    ///
+    /// @param body The template's body.
+    /// @param listPath The card list.
+    /// @return Whether one does; false where the path no longer exists.
+    public static boolean iterated(final List<OutputNode> body, final int[] listPath) {
+        // Each holder on the way down: the node at every even depth of the path
+        for (int i = 0; i + 1 < listPath.length; i += 2) {
+            final OutputNode holder = get(body, Arrays.copyOf(listPath, i + 1));
+            if (holder instanceof ForEach || holder instanceof ForEachGroup) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static OutputNode get(final List<OutputNode> body, final int[] nodePath) {
         if (nodePath.length == 0) {
             return null;

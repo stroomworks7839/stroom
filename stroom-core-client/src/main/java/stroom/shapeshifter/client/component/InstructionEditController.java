@@ -110,6 +110,12 @@ public class InstructionEditController extends Controller {
     private String conditionJson;
     // The names the card's template may read as they are now, for the offer to declare one
     private Supplier<List<String>> knownNames = List::of;
+    // The lists it may read, for what may follow a Select naming one (design 44 Q14)
+    private Supplier<List<String>> knownLists = List::of;
+    // Whether the kind's first field is a Select that reads one value, which a subscript can
+    // say the entry of; and whether a for-each holds the card, which is where index() is set
+    private boolean selectReadsOne;
+    private boolean iterated;
     // What a new apply-templates dispatches into before the author says, or null (design 47 I),
     // and whether it has been said: the default is a start, not a mode chosen again whenever the
     // kind is
@@ -156,8 +162,9 @@ public class InstructionEditController extends Controller {
             view.getSort().setKeys(sortKeys);
         });
         view.setOnKind(this::showKind);
-        view.setOnFieldTyped(this::offerToDeclare);
+        view.setOnFieldTyped(this::offer);
         view.setOnDeclare(this::declare);
+        view.setOnSubscript(this::addSubscript);
     }
 
     /// A node to edit, or null for a new one of the kind given.
@@ -212,10 +219,12 @@ public class InstructionEditController extends Controller {
         } else if (!AUTO.equals(kind) && !FORMABLE.contains(kind)) {
             view.setWire(skeleton(kind));
         }
-        offerToDeclare();
+        offer();
     }
 
     private static final List<String> FORMABLE = Instructions.FORM_KINDS;
+
+    private static final String SELECT = "Select";
 
     /// The text fields the one view has; parse-date uses every one of them.
     private static final int FIELDS = 5;
@@ -422,6 +431,8 @@ public class InstructionEditController extends Controller {
         v.setWireVisible(false);
         v.setNote(null);
         v.setDeclare(null);
+        v.setSubscripts(List.of());
+        selectReadsOne = false;
         switch (kind) {
             case AUTO:
                 field(0, "Line", "text, or $1 or $label for a capture group, or ${…} for any "
@@ -436,14 +447,14 @@ public class InstructionEditController extends Controller {
                 v.setMultiLabel("Text");
                 break;
             case "value-of":
-                field(0, "Select", "a name, $1 or $label for a capture group, \"quoted "
+                selectOfOne("a name, $1 or $label for a capture group, \"quoted "
                                    + "text\" for a literal, or a call such as index(), size(xs) "
                                    + "or get(m, \"k\"), which may wear or \"-\" for a default or "
                                    + "as number for a cast; [i] or [matchCount()] after a name "
                                    + "says which match; several one after another are joined");
                 break;
             case "translate":
-                field(0, "Select", "what is translated: a name, $1 for a capture group, or a "
+                selectOfOne("what is translated: a name, $1 for a capture group, or a "
                                    + "function");
                 field(1, "Name", "the name the result is bound to");
                 v.setMultiVisible(true);
@@ -472,7 +483,7 @@ public class InstructionEditController extends Controller {
                 // thing gets one field, divide gets two, and only add's fold gets a list.
                 switch (SimpleTransforms.arity(kind)) {
                     case ONE:
-                        field(0, "Select", "a name, $1 for a capture group, or a function");
+                        selectOfOne("a name, $1 for a capture group, or a function");
                         field(1, "Name", NAME_HELP);
                         break;
                     case TWO:
@@ -508,32 +519,32 @@ public class InstructionEditController extends Controller {
             case "contains":
             case "format-number":
                 // Select, the one word the kind turns on, and the name: eight kinds, one shape.
-                field(0, "Select", "a name, $1 for a capture group, or a function");
+                selectOfOne("a name, $1 for a capture group, or a function");
                 field(1, WORD_OF.get(kind), WORD_HELP.get(kind));
                 field(2, "Name", NAME_HELP);
                 break;
             case "replace":
-                field(0, "Select", "a name, $1 for a capture group, or a function");
+                selectOfOne("a name, $1 for a capture group, or a function");
                 field(1, "Find", "the text to look for, or a regular expression");
                 field(2, "Replace with", "what to put in its place; blank deletes it");
                 field(3, "Name", NAME_HELP);
                 flag(0, "Find is a regular expression");
                 break;
             case "substring":
-                field(0, "Select", "a name, $1 for a capture group, or a function");
+                selectOfOne("a name, $1 for a capture group, or a function");
                 field(1, "Start", "where it starts, counting from 1 at version 5 and from 0 "
                                   + "before (design/17 §7); blank starts at the beginning");
                 field(2, "Length", "how many characters; blank runs to the end");
                 field(3, "Name", NAME_HELP);
                 break;
             case "format-date":
-                field(0, "Select", "a name, $1 for a capture group, or a function");
+                selectOfOne("a name, $1 for a capture group, or a function");
                 field(1, "Pattern", "how the date is written out");
                 field(2, "Time zone", "the zone it is written in; blank is UTC");
                 field(3, "Name", NAME_HELP);
                 break;
             case "parse-date":
-                field(0, "Select", "a name, $1 for a capture group, or a function");
+                selectOfOne("a name, $1 for a capture group, or a function");
                 field(1, "Pattern", "how the date is written, or iso");
                 field(2, "Time zone", "the zone it is read in; blank is UTC");
                 field(3, "Relative to", "a date the year is taken from where the text has none; "
@@ -544,7 +555,7 @@ public class InstructionEditController extends Controller {
                 // The codec's picker renders between the first field and the second, so the
                 // form reads Select, Codec, Name — what is read, what is done, what it is
                 // called, which is the order every other form here asks in.
-                field(0, "Select", "a name, $1 for a capture group, or a function");
+                selectOfOne("a name, $1 for a capture group, or a function");
                 v.setChoice(CODECS, null, "Codec", true);
                 field(1, "Name", NAME_HELP);
                 break;
@@ -575,7 +586,7 @@ public class InstructionEditController extends Controller {
                 field(0, "Message", "a declared name, or a function");
                 break;
             case "apply-templates":
-                field(0, "Select", "what is dispatched: a declared name, $1 for a capture "
+                field(0, SELECT, "what is dispatched: a declared name, $1 for a capture "
                                    + "group, or a function; blank is this match's whole content");
                 v.setModeVisible(true);
                 if (original == null && !modeOffered) {
@@ -610,7 +621,7 @@ public class InstructionEditController extends Controller {
                           + " condition and card list.");
                 break;
             case "switch":
-                field(0, "Select", "the value switched on: a declared name, or a function");
+                selectOfOne("the value switched on: a declared name, or a function");
                 v.setMultiVisible(true);
                 v.setMultiLabel("Cases, one value per line; a case's cards stay with its position");
                 break;
@@ -618,13 +629,13 @@ public class InstructionEditController extends Controller {
                 field(0, "Name", "what the body beneath is bound to");
                 break;
             case "for-each":
-                field(0, "Select", "the collection iterated: a declared name, or a function");
+                field(0, SELECT, "the collection iterated: a declared name, or a function");
                 field(1, "As", "the name each entry is bound to");
                 field(2, "As key", "for a map, the name each key is bound to; blank for none");
                 v.setSortVisible(true);
                 break;
             case "for-each-group":
-                field(0, "Select", "the collection grouped: a declared name, or a function");
+                field(0, SELECT, "the collection grouped: a declared name, or a function");
                 field(1, "Group by", "a declared name, or a function; blank groups by the "
                                      + "entry's own value");
                 break;
@@ -663,6 +674,15 @@ public class InstructionEditController extends Controller {
     private void field(final int index, final String label, final String help) {
         view.setFieldVisible(index, true);
         view.setFieldLabel(index, label, help);
+    }
+
+    // The kind's Select, where it reads one value: a subscript can say which entry of a list
+    // it is (design 44 Q14). A kind whose Select is a collection taken whole — a for-each
+    // walks every entry, a for-each-group files them, an apply-templates dispatches what it
+    // is given — has a plain field instead.
+    private void selectOfOne(final String help) {
+        field(0, SELECT, help);
+        selectReadsOne = true;
     }
 
     private void flag(final int index, final String label) {
@@ -866,6 +886,29 @@ public class InstructionEditController extends Controller {
         return sb.toString();
     }
 
+    // What the card offers for what its fields hold, said again whenever they change
+    private void offer() {
+        offerToDeclare();
+        offerSubscripts();
+    }
+
+    // A Select naming a declared list is offered what may follow it to say which entry it reads
+    // (design 44 Q14). The lists are only looked for once the field holds a name that could be
+    // one, since this runs on every change to what it holds.
+    private void offerSubscripts() {
+        final String select = view.getField(0).trim();
+        view.setSubscripts(selectReadsOne && Instructions.isPlainName(select)
+                ? Templates.subscriptsAfter(knownLists.get(), select, iterated)
+                : List.of());
+    }
+
+    // The offer taken: the subscript follows the name, and the keyboard is back in the field
+    private void addSubscript(final String subscript) {
+        view.setField(0, view.getField(0).trim() + subscript);
+        offer();
+        view.focusFirst();
+    }
+
     // A variable naming what nothing declares is offered the way to declare it; anything else
     // is offered nothing
     private void offerToDeclare() {
@@ -897,6 +940,22 @@ public class InstructionEditController extends Controller {
     ///                   params, the functions.
     public void setKnownNames(final Supplier<List<String>> knownNames) {
         this.knownNames = knownNames;
+    }
+
+    /// Sets where the lists come from that a Select may be offered a subscript for.
+    ///
+    /// @param knownLists The lists the card's template may read as they are now
+    ///                   ([Templates#declaredLists]).
+    public void setKnownLists(final Supplier<List<String>> knownLists) {
+        this.knownLists = knownLists;
+    }
+
+    /// Says whether a `for-each` or a `for-each-group` holds the card, where `index()` is set
+    /// and so may be offered after a list; set before [#read].
+    ///
+    /// @param iterated Whether one does.
+    public void setIterated(final boolean iterated) {
+        this.iterated = iterated;
     }
 
     /// Something to start from in the wire form: a transform's shape, or a text.

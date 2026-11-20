@@ -23,6 +23,7 @@ import stroom.shapeshifter.config.CaptureBinding;
 import stroom.shapeshifter.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.MatchExpression.Length;
 import stroom.shapeshifter.config.MatchExpression.MatchPart;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /// With-copies of [Template] and one-line descriptions of its parts. The model is records
 /// without withers (it is shared with the engine and stays plain), so the editor's copies live here.
@@ -67,20 +69,46 @@ public final class Templates {
     /// @param template The template the names are offered in, or null.
     /// @return The declared names.
     public static List<String> declaredNames(final Project project, final Template template) {
-        final Set<String> names = new LinkedHashSet<>();
-        if (template != null) {
-            for (final Declaration declaration : template.declarations()) {
-                names.add(declaration.name());
-            }
+        return declared(project, template, declaration -> true);
+    }
+
+    /// Every list a template may read, as [#declaredNames] finds the names: the template's own
+    /// first, then the rest in the project's order, each once.
+    ///
+    /// @param project The project, or null for none.
+    /// @param template The template the names are offered in, or null.
+    /// @return The declared lists.
+    public static List<String> declaredLists(final Project project, final Template template) {
+        return declared(project, template, declaration -> declaration.type() == Declaration.Type.LIST);
+    }
+
+    /// What may follow a Select that names a declared list, to say which of its entries is read
+    /// (design 44 Q14, ruled 2026-11-19): `[matchCount()]`, the entry as this match is counted,
+    /// so the nth match reads the nth; and, inside a `for-each`, `[index()]`, the entry at its
+    /// position. The one way to say *the nth of these goes with the nth of those*, offered
+    /// where the author is looking, rather than known.
+    ///
+    /// Nothing where the Select holds anything but the plain name of a declared list: a name
+    /// that already wears a subscript says which entry already, and one that is not a list has
+    /// no entries to choose among. And no `[index()]` outside an iteration (ruled 2026-11-20):
+    /// nothing sets it there, and the reference would quietly read the first entry every time.
+    ///
+    /// @param lists The declared lists ([#declaredLists]).
+    /// @param select What the Select holds.
+    /// @param iterated Whether a `for-each` or a `for-each-group` holds the card ([Bodies#iterated]).
+    /// @return The subscripts to offer, in order.
+    public static List<String> subscriptsAfter(final List<String> lists, final String select,
+                                               final boolean iterated) {
+        final String name = select == null
+                ? ""
+                : select.trim();
+        if (!Instructions.isPlainName(name) || !lists.contains(name)) {
+            return List.of();
         }
-        if (project != null) {
-            for (final Template other : project.templates()) {
-                for (final Declaration declaration : other.declarations()) {
-                    names.add(declaration.name());
-                }
-            }
-        }
-        return new ArrayList<>(names);
+        final String counted = "[" + EngineVars.MATCH_COUNT.spelling() + "]";
+        return iterated
+                ? List.of(counted, "[" + EngineVars.INDEX.spelling() + "]")
+                : List.of(counted);
     }
 
     /// Whether a name a `variable` binds is one to offer to declare (design 47 I): a name a
@@ -92,6 +120,31 @@ public final class Templates {
     /// @return Whether to offer to declare it.
     public static boolean undeclared(final List<String> known, final String name) {
         return Instructions.isPlainName(name) && !known.contains(name);
+    }
+
+    // The names declared that a test passes: the template's own first, then the rest in the
+    // project's order, each once — the order they are offered in
+    private static List<String> declared(final Project project, final Template template,
+                                         final Predicate<Declaration> wanted) {
+        final Set<String> names = new LinkedHashSet<>();
+        if (template != null) {
+            addDeclared(template, wanted, names);
+        }
+        if (project != null) {
+            for (final Template other : project.templates()) {
+                addDeclared(other, wanted, names);
+            }
+        }
+        return new ArrayList<>(names);
+    }
+
+    private static void addDeclared(final Template template, final Predicate<Declaration> wanted,
+                                    final Set<String> names) {
+        for (final Declaration declaration : template.declarations()) {
+            if (wanted.test(declaration)) {
+                names.add(declaration.name());
+            }
+        }
     }
 
     /// The template with a scalar declared on it, after what it declares already.

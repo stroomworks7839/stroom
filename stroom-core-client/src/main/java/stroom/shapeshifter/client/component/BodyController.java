@@ -258,6 +258,10 @@ public class BodyController extends Controller {
         return true;
     }
 
+    private List<String> lists() {
+        return Templates.declaredLists(host.getProject(), host.template(templateId));
+    }
+
     private List<String> names() {
         final Template template = host.template(templateId);
         final Set<String> names = new LinkedHashSet<>(Templates.declaredNames(host.getProject(), template));
@@ -357,6 +361,8 @@ public class BodyController extends Controller {
         // dispatched into before anything is in it (design 47 C)
         editing.setOnDeclare(this::declare);
         editing.setKnownNames(this::names);
+        editing.setKnownLists(this::lists);
+        editing.setIterated(Bodies.iterated(body, Bodies.parent(Bodies.path(at))));
         editing.read(node, null, names(), host.modes(), null);
         editing.setOnCommit(this::commit);
         editing.setOnCancel(this::cancel);
@@ -405,6 +411,8 @@ public class BodyController extends Controller {
         editing = make(instructionEditorProvider);
         editing.setOnDeclare(this::declare);
         editing.setKnownNames(this::names);
+        editing.setKnownLists(this::lists);
+        editing.setIterated(Bodies.iterated(body, Bodies.path(listPath)));
         final Template template = host.template(templateId);
         final List<String> modes = host.modes();
         editing.read(null, InstructionEditController.AUTO, names(), modes,

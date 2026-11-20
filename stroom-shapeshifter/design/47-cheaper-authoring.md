@@ -1494,7 +1494,26 @@ reading a name no declaration names is refused at compile (`ReferenceCheck.decla
 
 4. **Design 44 Q14 — ruled: suggest it in the Select.** Where a Select names a declared list,
    what follows it — `[matchCount()]`, `[index()]` — is offered there, where the author is
-   looking when they need it.
+   looking when they need it. **Done 2026-11-20.** A Select holding the plain name of a list any
+   template declares shows them under itself as links; one press puts the subscript after the
+   name and the keyboard back in the field, and the offer goes, since the name now says which
+   entry (`Templates.subscriptsAfter`, `Templates.declaredLists`, `TestTemplates`,
+   `ASelectNamingAListIsOfferedWhichEntry`, `ASelectInAForEachIsOfferedItsIndex`). A scalar, a
+   set or a map is offered nothing, and nor is a Select that is the collection taken whole: a
+   `for-each`'s, a `for-each-group`'s, an `apply-templates`'. What the offer writes is read
+   back by the Select's own reader as the match index it says, which a test holds it to.
+
+   **`[index()]` only inside an iteration — ruled 2026-11-20**, amending the ruling above: a
+   review found it offered at the top of a body, where nothing sets `index()`; the engine
+   warns, and the reference reads the first entry every time. It is offered where a
+   `for-each` or a `for-each-group` holds the card, as the engine's reference check counts it
+   (`Bodies.iterated`). **Only the first field's Select — ruled 2026-11-20:** `append`,
+   `insert` and `put` take their Select after a Target, and are not offered, as no fixture
+   subscripts one.
+
+   It is not offered in a typed line's `${…}`, which is where rung 5 writes
+   `heading[matchCount()]`: the line holds text around the reference, and an offer there would
+   have to know where in the line the author is. Rung 5's count is unchanged.
 5. **The workbench leak check — ruled: retry before failing.** A story that fails only the leak
    check is run again, alone, before it is reported; a real leak fails both times. It misread
    more than thirty healthy stories this session whenever other work loaded the machine. It is
