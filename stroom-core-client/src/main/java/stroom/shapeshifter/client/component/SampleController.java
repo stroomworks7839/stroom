@@ -87,7 +87,15 @@ public class SampleController extends Controller {
     private String pointedLabel;
     // Where a tree that matched nowhere got furthest: the prefix trial's answer to the trace held
     private ShapeshifterTrace progress;
+    // The trace the marks shown were drawn from: the sample's, or the progress's
+    private ShapeshifterTrace drawn;
     private Consumer<String> onStopped = path -> {
+    };
+    // The groups' colours: the variables' they are bound to, as the workbench last said
+    private GroupHues hues = GroupHues.NONE;
+    private IntConsumer onPinGroup = group -> {
+    };
+    private Consumer<String> onPinLabel = label -> {
     };
 
     @Inject
@@ -100,6 +108,7 @@ public class SampleController extends Controller {
             pointGroup(group);
             onGroupPoint.accept(group);
         });
+        view.setOnGroupPin((frame, group) -> pin(frame, group));
         this.restFactory = restFactory;
         this.rerun = new DelayedUpdate(400, this::run);
         onDispose(rerun::reset);
@@ -107,6 +116,69 @@ public class SampleController extends Controller {
 
     public void setHost(final ProjectHost host) {
         this.host = host;
+    }
+
+    /// Takes the groups' colours from the workbench, which hands the pattern the same, for the
+    /// next time the sample is painted.
+    ///
+    /// @param hues The groups' colours.
+    void setHues(final GroupHues hues) {
+        this.hues = hues;
+    }
+
+    /// Takes the groups' colours and paints them now: a run or a step moved a variable's colour.
+    ///
+    /// @param hues The groups' colours.
+    void recolour(final GroupHues hues) {
+        this.hues = hues;
+        paint();
+    }
+
+    /// @param onPinGroup Asked to keep a regex's group shown, as a click on its row does: a click
+    ///                   on one of its marks.
+    public void setOnPinGroup(final IntConsumer onPinGroup) {
+        this.onPinGroup = onPinGroup;
+    }
+
+    /// @param onPinLabel Asked to select the tree's node a label is reported under, as a click on
+    ///                   the node does: a click on what it matched. Null for the whole match.
+    public void setOnPinLabel(final Consumer<String> onPinLabel) {
+        this.onPinLabel = onPinLabel;
+    }
+
+    // A click on a mark selects what it is of, as a click on its row or its node does (ruled
+    // 2026-11-20): a regex's group by number, a tree's node by the label it is reported under,
+    // and the whole match a tree's root. A group whose label is not known selects nothing.
+    private void pin(final long frame, final int group) {
+        final MatchExpression match = experiment == null
+                ? null
+                : experiment.match();
+        if (match instanceof MatchExpression.Regex) {
+            onPinGroup.accept(group);
+        } else if (match instanceof MatchExpression.Pattern) {
+            if (group == 0) {
+                onPinLabel.accept(null);
+            } else {
+                final String label = labelOf(frame, group);
+                if (label != null) {
+                    onPinLabel.accept(label);
+                }
+            }
+        }
+    }
+
+    // The label a group of a frame is reported under, from the trace the marks were drawn from:
+    // the sample's, or the trial of how far a tree got, which numbers its frames afresh
+    private String labelOf(final long frame, final int group) {
+        if (drawn == null) {
+            return null;
+        }
+        for (final Group candidate : drawn.getGroups()) {
+            if (candidate.getFrameId() == frame && candidate.getIndex() == group) {
+                return candidate.getName();
+            }
+        }
+        return null;
     }
 
     /// Shown for a template, and again after every edit of it: the match may have changed.
@@ -344,7 +416,9 @@ public class SampleController extends Controller {
             if (attempt.getParentFrameId() == TraceModel.ROOT) {
                 tried++;
                 if (!attempt.isMatched() && attempt.getContentOffset() >= 0) {
-                    marks.add(new Mark(Mark.Kind.GAP, -1, -1, null, attempt.getContentOffset(),
+                    // Quiet: a place the template was tried and did not match is no failure on a
+                    // trial, and red is kept for one (ruled 2026-11-20)
+                    marks.add(new Mark(Mark.Kind.TRIED, -1, -1, null, attempt.getContentOffset(),
                             attempt.getContentOffset(), null, "Tried here; no match"));
                 }
             }
@@ -368,6 +442,9 @@ public class SampleController extends Controller {
         final String got = matches == 0
                 ? addProgress(marks, text)
                 : null;
+        drawn = got != null
+                ? progress
+                : trace;
         if (matches > 0) {
             onStopped.accept(null);
         }
@@ -480,7 +557,7 @@ public class SampleController extends Controller {
                         Math.min(start + group.getContentLength(), text.length()))
                         : null;
                 cells.add(new Sample.Cell(group.getIndex(), group.getName(), value,
-                        Colours.hue(group.getIndex()), isolated(group)));
+                        hues.hue(group.getIndex(), group.getName()), isolated(group)));
             }
             // A regex's group is shown alone by lighting it (Sample#lightGroup), and every
             // capture is drawn; a tree's node by drawing only its spans
@@ -489,9 +566,14 @@ public class SampleController extends Controller {
                     : shown.equals(group.getName());
             if (placed && drawn) {
                 // Ruled, because in this pane every capture is the current level's: there is
-                // one pattern and no hierarchy to be below (design 18 §5.11.2).
-                marks.add(new Mark(Mark.Kind.CAPTURE, frame.getId(), group.getIndex(), null, start,
-                        start + group.getContentLength(), Colours.hue(group.getIndex()),
+                // one pattern and no hierarchy to be below (design 18 §5.11.2). A node the author
+                // did not name has no colour of its own: it is named by pointing at it.
+                marks.add(new Mark(trial
+                        ? Mark.Kind.NODE
+                        : Mark.Kind.CAPTURE, frame.getId(), group.getIndex(), null, start,
+                        start + group.getContentLength(), trial
+                        ? null
+                        : hues.hue(group.getIndex(), group.getName()),
                         groupTitle(group), true));
             }
         }

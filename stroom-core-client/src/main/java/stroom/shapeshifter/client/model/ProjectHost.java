@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.model;
 
 import stroom.pipeline.shared.SourceLocation;
+import stroom.shapeshifter.client.component.CaptureHues;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 
@@ -83,6 +84,18 @@ public interface ProjectHost {
 
     /// The selected frame — the cursor — as a frame id; [TraceModel#ROOT] for the document.
     long cursor();
+
+    /// The colour of every capture in scope at the cursor, which the input pane draws and the
+    /// pattern workbench colours its groups by. A host that keeps one per run and cursor saves
+    /// the walk, which at the document over a large sample is the whole tree.
+    ///
+    /// @return The allocation, or null before the first run.
+    default CaptureHues captureHues() {
+        final TraceModel trace = trace();
+        return trace == null
+                ? null
+                : CaptureHues.inScope(trace, cursor());
+    }
 
     void setCursor(long frameId);
 

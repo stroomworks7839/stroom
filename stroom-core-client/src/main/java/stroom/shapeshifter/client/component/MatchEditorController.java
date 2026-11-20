@@ -119,6 +119,35 @@ public class MatchEditorController extends Controller {
         regexForm.pointGroup(group);
     }
 
+    /// Keeps a regex's group shown, as a click on its row does; a click on the same again lets it go.
+    ///
+    /// @param group The group.
+    public void selectGroup(final int group) {
+        regexForm.onGroupSelect(group);
+    }
+
+    /// Selects the tree's node a label is reported under, as a click on the node does.
+    ///
+    /// @param label The label, or null for the whole tree.
+    public void selectLabel(final String label) {
+        treeForm.selectLabel(label);
+    }
+
+    /// Takes the groups' colours, for the next time the regex's groups are shown; the workbench
+    /// hands the sample the same.
+    ///
+    /// @param hues The groups' colours.
+    void setHues(final GroupHues hues) {
+        regexForm.setHues(hues);
+    }
+
+    /// Takes the groups' colours and draws them now: a run or a step moved a variable's colour.
+    ///
+    /// @param hues The groups' colours.
+    void recolour(final GroupHues hues) {
+        regexForm.recolour(hues);
+    }
+
     /// Told the label the tree node selected is reported under, null for none.
     public void setOnLabelSelect(final Consumer<String> onLabelSelect) {
         treeForm.setOnLabelSelect(onLabelSelect);

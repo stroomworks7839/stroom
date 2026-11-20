@@ -78,6 +78,31 @@ class MarksTest {
     }
 
     @Test
+    void whatWasOnlyTriedIsAQuieterGapThanAFailure() {
+        // One meaning a mark (ruled 2026-11-20): red is a failure, and a trial's line that did
+        // not match is none, so it is a gap of its own kind the sheet draws quietly
+        assertThat(render("ab\ncd",
+                new Mark(Kind.TRIED, -1, -1, null, 0, 0, null, "Tried here; no match"),
+                new Mark(Kind.GAP, -1, -1, null, 3, 3, null, "Stopped here")))
+                .isEqualTo("<span class=\"mark--gap mark--tried\" title=\"Tried here; no match\"></span>ab\n"
+                           + "<span class=\"mark--gap\" title=\"Stopped here\"></span>cd");
+    }
+
+    @Test
+    void aNodeIsACaptureWithNoColourOfItsOwn() {
+        assertThat(render("ab", new Mark(Kind.NODE, 3, 2, null, 0, 2, null, null, true)))
+                .isEqualTo("<span class=\"mark--capture mark--node mark--ruled\" data-cap=\"3:2\">ab</span>");
+    }
+
+    @Test
+    void aCaptureSaysWhichVariableItBound() {
+        // Pointing at one capture lights every capture of its variable (Marks.light), escaped as
+        // any attribute is
+        assertThat(render("ab", new Mark(Kind.CAPTURE, 3, 0, null, 0, 2, null, null).withVariable("t/k\"<")))
+                .isEqualTo("<span class=\"mark--capture\" data-cap=\"3:0\" data-var=\"t/k&quot;&lt;\">ab</span>");
+    }
+
+    @Test
     void theCursorsExtentIsOutsideAMatchThatFillsItAndDimIsItsOwnMark() {
         assertThat(render("abcd",
                 new Mark(Kind.MATCH, 2, -1, "t", 1, 3, null, null),

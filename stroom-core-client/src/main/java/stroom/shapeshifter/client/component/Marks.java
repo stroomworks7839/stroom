@@ -41,6 +41,7 @@ public final class Marks {
     static final String TEMPLATE_ATTR = "data-tpl";
     static final String CAPTURE_ATTR = "data-cap";
     static final String INSTRUCTION_ATTR = "data-instr";
+    static final String VARIABLE_ATTR = "data-var";
     static final String HOT_CLASS = "highlight";
     static final String POINTING_CLASS = "pointing";
 
@@ -92,8 +93,12 @@ public final class Marks {
         while (at != null && at != block) {
             final String capture = at.getAttribute(CAPTURE_ATTR);
             if (capture != null && !capture.isEmpty()) {
+                final String variable = at.getAttribute(VARIABLE_ATTR);
                 return Hot.capture(Long.parseLong(capture.substring(0, capture.indexOf(':'))),
-                        Integer.parseInt(capture.substring(capture.indexOf(':') + 1)));
+                        Integer.parseInt(capture.substring(capture.indexOf(':') + 1)),
+                        variable == null || variable.isEmpty()
+                                ? null
+                                : variable);
             }
             final String instruction = at.getAttribute(INSTRUCTION_ATTR);
             if (instruction != null && !instruction.isEmpty()) {
@@ -136,17 +141,31 @@ public final class Marks {
     /// outside the tint's reach and so have no mark here, and fading every rule for a row that
     /// lights nothing reads as the pane breaking rather than as a hover.
     ///
+    /// A capture that says which variable it bound lights every capture of that variable
+    /// (ruled 2026-11-20): a colour belongs to a variable rather than to one binding of it
+    /// ([CaptureHues]), so pointing at one shows where else that same thing was read, as the
+    /// workbench's sample shows a group in every match. The request carries the variable, from
+    /// the mark pointed at or the variables pane's row, so every block answers it alike.
+    ///
     /// @param block The block holding the marks.
     /// @param hot What is pointed at, or null for nothing.
     static void light(final Element block, final Hot hot) {
+        final boolean byVariable = hot != null && hot.getKind() == Hot.Kind.CAPTURE && hot.getVariable() != null;
         final String attr = hot == null
                 ? null
-                : attrOf(hot.getKind());
+                : byVariable
+                        ? VARIABLE_ATTR
+                        : attrOf(hot.getKind());
+        final String key = hot == null
+                ? null
+                : byVariable
+                        ? hot.getVariable()
+                        : hot.key();
         final NodeList<Element> spans = block.getElementsByTagName("span");
         boolean any = false;
         for (int i = 0; i < spans.getLength(); i++) {
             final Element span = spans.getItem(i);
-            final boolean lit = attr != null && hot.key().equals(span.getAttribute(attr));
+            final boolean lit = attr != null && key.equals(span.getAttribute(attr));
             if (lit) {
                 span.addClassName(HOT_CLASS);
                 any = true;
@@ -226,7 +245,9 @@ public final class Marks {
         switch (mark.getKind()) {
             case MATCH -> tag.append("mark");
             case CAPTURE -> tag.append("mark--capture");
+            case NODE -> tag.append("mark--capture mark--node");
             case GAP -> tag.append("mark--gap");
+            case TRIED -> tag.append("mark--gap mark--tried");
             case OWN -> tag.append("mark--own");
             case INSTRUCTION -> tag.append("mark--instruction");
             case DIM -> tag.append("mark--dim");
@@ -245,8 +266,14 @@ public final class Marks {
                     .append(SafeHtmlUtils.htmlEscape(mark.getTemplateId() == null
                             ? ""
                             : mark.getTemplateId())).append('"');
-            case CAPTURE -> tag.append(' ').append(CAPTURE_ATTR).append("=\"").append(mark.getFrameId()).append(':')
-                    .append(mark.getIndex()).append('"');
+            case CAPTURE, NODE -> {
+                tag.append(' ').append(CAPTURE_ATTR).append("=\"").append(mark.getFrameId()).append(':')
+                        .append(mark.getIndex()).append('"');
+                if (mark.getVariable() != null) {
+                    tag.append(' ').append(VARIABLE_ATTR).append("=\"")
+                            .append(SafeHtmlUtils.htmlEscape(mark.getVariable())).append('"');
+                }
+            }
             case INSTRUCTION -> tag.append(' ').append(INSTRUCTION_ATTR).append("=\"").append(mark.getFrameId())
                     .append(':').append(mark.getIndex()).append('"');
             default -> {

@@ -350,6 +350,25 @@ public class PatternTreeController
         }
     }
 
+    /// Selects the node a label is reported under, as a click on the node does: a click on what
+    /// it matched in the sample (ruled 2026-11-20). The node already selected is let go, the root
+    /// selected in its place, as a click on a regex's group kept shown lets that go.
+    ///
+    /// @param label The label, or null for the root, whose stretch is the whole match.
+    public void selectLabel(final String label) {
+        if (root == null) {
+            return;
+        }
+        final int[] path = label == null
+                ? new int[0]
+                : PatternNodes.pathOfLabel(root, label);
+        if (path != null) {
+            onSelect(PatternNodes.path(Arrays.equals(path, selected)
+                    ? new int[0]
+                    : path));
+        }
+    }
+
     /// Opened, a double click: a node with one text is edited in place (ruled 2026-11-20), and
     /// any other in the dialog.
     public void onOpen(final String path) {

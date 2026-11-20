@@ -273,6 +273,34 @@ public final class ShapeshifterPaneStories {
                     play.waitFor(() -> play.expect(
                                     play.querySelector(CAPTURE_VALUE).computedStyle("border-bottom-color"))
                             .toEqual("rgba(0, 0, 0, 0)"));
+                })
+
+                // Pointing at a capture lights every capture of its variable on screen, as the
+                // workbench's sample lights a group in every match (ruled 2026-11-20): a colour
+                // belongs to a variable rather than to one binding of it, so the four pairs'
+                // keys are one thing to point at. A mark keeps the pane's font, too: Stroom sets
+                // every span's afresh, and the marked text was falling back to sans.
+                .story("InputPanePointingLightsAVariable", ShapeshifterPaneStories::renderPaneOnly)
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE_KEY)).not().toBeNull());
+                    final String[] font = new String[1];
+                    play.expect(play.querySelector(CONTENT_BLOCK).computedStyle("font-family"))
+                            .toSatisfy("a font", family -> {
+                                font[0] = String.valueOf(family);
+                                return !font[0].isEmpty();
+                            });
+                    play.expect(play.querySelector(CAPTURE_KEY).computedStyle("font-family"))
+                            .toSatisfy("the pane's font", family -> family.equals(font[0]));
+                    play.hover(play.querySelector(CAPTURE_KEY));
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE_KEY)).toHaveClass("highlight"));
+                    for (final long pair : List.of(5L, 6L, 7L)) {
+                        play.expect(play.querySelector(".mark--capture[data-cap='" + pair + ":0']"))
+                                .toHaveClass("highlight");
+                    }
+                    // ...and nothing else: not the same pair's value, nor the line it is in
+                    play.expect(play.querySelector(CAPTURE_VALUE)).not().toHaveClass("highlight");
+                    play.expect(play.querySelector(CAPTURE_LINE)).not().toHaveClass("highlight");
+                    play.expect(play.querySelector(CONTENT_BLOCK)).toHaveClass("pointing");
                 });
     }
 

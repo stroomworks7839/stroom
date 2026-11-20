@@ -838,9 +838,14 @@ public final class ShapeshifterTemplateStories {
                     play.expect(pane(play, "Sample"))
                             .toHaveTextContent(TextMatch.regex("^Sample 2 matches · tried at 3"));
                     play.expect(play.getByLabelText(SAMPLE_FIELD)).not().toBeVisible();
-                    // Clicked, it is a field to edit it in; Escape marks it again, and goes no
-                    // further than the field: the workbench stays open
-                    play.click(play.querySelector(SAMPLE_MARK));
+                    // Where it was tried and did not match is a quiet tick, not red: on a trial
+                    // that is no failure (ruled 2026-11-20)
+                    play.expect(play.querySelector(".sample__read .mark--tried")).not().toBeNull();
+                    play.expect(play.querySelector(".sample__read .mark--gap:not(.mark--tried)")).toBeNull();
+                    // Double-clicked, it is a field to edit it in, a click on a mark being the
+                    // group's (ruled 2026-11-20); Escape marks it again, and goes no further than
+                    // the field: the workbench stays open
+                    play.dblClick(play.querySelector(SAMPLE_MARK));
                     play.waitFor(() -> play.expect(play.getByLabelText(SAMPLE_FIELD)).toHaveFocus());
                     play.keyboard("{Escape}");
                     play.waitFor(() -> play.expect(play.querySelector(SAMPLE_MARK)).toBeVisible());
@@ -902,6 +907,42 @@ public final class ShapeshifterTemplateStories {
                     play.waitFor(() -> play.expect(groupRow(play, 2)).toHaveClass("group-row--lit"));
                     play.expect(groupRow(play, 1)).not().toHaveClass("group-row--lit");
                     play.expect(play.querySelector(GROUP + "[data-group='2']")).toHaveClass("regex__group--lit");
+                    // A click on it keeps it shown, as a click on its row does, and the sample is
+                    // not opened for editing (ruled 2026-11-20)
+                    play.click(play.querySelector(CAPTURE + "'2:2']"));
+                    play.waitFor(() -> play.expect(groupRow(play, 2)).toHaveClass("group-row--selected"));
+                    play.expect(play.getByLabelText(SAMPLE_FIELD)).not().toBeVisible();
+                    play.unhover(play.querySelector(CAPTURE + "'2:2']"));
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE + "'1:2']")).toHaveClass(LIT));
+                    play.expect(play.querySelector(CAPTURE + "'1:1']")).not().toHaveClass(LIT);
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // A group bound to a variable is that variable's colour, the one the Design tab's
+                // input draws its captures in; one bound to nothing is a colour no variable on
+                // screen has (ruled 2026-11-20)
+                .story("AGroupTakesItsVariablesColour",
+                        context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    final Query inputKey = play.querySelector(".content-pane .mark--capture[data-cap='2:0']");
+                    play.waitFor(() -> play.expect(inputKey).not().toBeNull());
+                    final String[] keyHue = new String[1];
+                    play.expect(inputKey.computedStyle("--hue")).toSatisfy("a colour", hue -> {
+                        keyHue[0] = String.valueOf(hue).trim();
+                        return !keyHue[0].isEmpty();
+                    });
+                    play.click(ShapeshifterEditorStories.workbenchButton(play));
+                    final Query chip = play.querySelector(".regex__groups > .group-row:nth-child(2) .chip");
+                    play.waitFor(() -> play.expect(chip).not().toBeNull());
+                    play.expect(chip.computedStyle("--chip__colour"))
+                            .toSatisfy("not the key's, as it is bound to nothing",
+                                    hue -> !String.valueOf(hue).trim().equals(keyHue[0]));
+                    play.click(play.querySelector(".regex__groups > .group-row:nth-child(2) .group-row__capture-name"));
+                    play.keyboard("key{Enter}");
+                    play.waitFor(() -> play.expect(chip.computedStyle("--chip__colour"))
+                            .toSatisfy("the key's", hue -> String.valueOf(hue).trim().equals(keyHue[0])));
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE + "'1:1']").computedStyle("--hue"))
+                            .toSatisfy("the key's", hue -> String.valueOf(hue).trim().equals(keyHue[0])));
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 .story("TemplatesAndPatternsFold", context -> ShapeshifterEditorStories.render(context, false))

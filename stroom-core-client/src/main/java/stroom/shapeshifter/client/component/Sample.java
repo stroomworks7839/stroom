@@ -23,13 +23,16 @@ import stroom.widget.layout.client.SplitPane;
 import stroom.widget.text.client.Html;
 import stroom.widget.text.client.Label;
 
+import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.dom.client.NodeList;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
+import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -37,14 +40,29 @@ import com.google.gwt.user.client.ui.FocusPanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
 public class Sample extends Component {
+
+    // How soon, and how near, a second click has to be to make a double click: the common
+    // desktop default, and a few pixels of a hand's tremor
+    private static final double DOUBLE_CLICK_MS = 500;
+    private static final int DOUBLE_CLICK_SLOP = 4;
 
     private Runnable onSample = () -> {
     };
     private IntConsumer onGroupPoint = group -> {
     };
+    private BiConsumer<Long, Integer> onGroupPin = (frame, group) -> {
+    };
+    // Where and when the last click on the marked sample was, so that a second one is known for
+    // the second half of a double click whatever the first did to the marks under it
+    private double lastClickAt;
+    private int lastClickX;
+    private int lastClickY;
+    // The marked sample as last set, so that the same marks are not set again
+    private SafeHtml shownMarks;
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
@@ -75,13 +93,31 @@ public class Sample extends Component {
                 .add(detailPane, "30%");
         sample.addKeyUpHandler(event -> onSampleKey(event));
         sample.addValueChangeHandler(event -> onSampleChange(event));
-        // The sample marked, at rest, opens to be edited: clicked, or Enter on it. Leaving the
-        // field, or Escape in it, marks it again; Escape goes no further, as it would close the
-        // workbench.
+        // The sample marked, at rest, opens to be edited: double-clicked, or Enter on it, or
+        // clicked while there is nothing in it. A click on a mark selects what it is of, as a
+        // click on its row does everywhere else (ruled 2026-11-20), and a double click selects it
+        // and then opens, as a double click on a file does. Leaving the field, or Escape in it,
+        // marks it again; Escape goes no further, as it would close the workbench.
         read.getElement().setAttribute("role", "region");
         read.getElement().setAttribute("aria-label", "Sample, its matches marked: Enter to edit it");
-        read.setTitle("The cursor's frame to start with. Click to edit it: this never runs the document.");
-        read.addClickHandler(event -> edit());
+        read.setTitle("The cursor's frame to start with. Click a mark to keep its group shown; double-click, "
+                      + "or Enter, to edit the sample: this never runs the document.");
+        // Counted here rather than left to the browser's dblclick: the first click can select a
+        // tree's node, which draws other marks, and the browser does not count a second click on
+        // an element that was not there for the first
+        read.addClickHandler(event -> {
+            final NativeEvent click = event.getNativeEvent();
+            if (secondClick(click.getClientX(), click.getClientY())) {
+                edit();
+                return;
+            }
+            final Element mark = markAt(click.getEventTarget());
+            if (mark != null) {
+                onGroupPin.accept(frameOf(mark), groupOf(mark));
+            } else if (sample.getText().isEmpty()) {
+                edit();
+            }
+        });
         read.addKeyDownHandler(event -> {
             if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
                 event.preventDefault();
@@ -155,8 +191,15 @@ public class Sample extends Component {
     /// @param line  How many matched and where it was tried, said on the matches' title bar.
     public void showMatches(final String text, final List<Mark> marks, final List<Row> rows, final String line) {
         samplePane.setNote(line);
-        matches.setHTML(Marks.render(text, marks));
-        Marks.rest(matches.getElement());
+        final SafeHtml marked = Marks.render(text, marks);
+        // Left alone when nothing in it moved: a group kept shown is a class on the marks, not
+        // new marks, and replacing the spans under a click would cost a double click its second
+        // half, which has to land on the element the first did
+        if (!marked.equals(shownMarks)) {
+            shownMarks = marked;
+            matches.setHTML(marked);
+            Marks.rest(matches.getElement());
+        }
         final SafeHtmlBuilder html = new SafeHtmlBuilder();
         if (!rows.isEmpty()) {
             html.appendHtmlConstant("<table class=\"sample__table\">");
@@ -199,7 +242,8 @@ public class Sample extends Component {
     /// @param why What to say under the sample, or nothing.
     public void showNothing(final String why) {
         samplePane.setNote(null);
-        matches.setHTML(Marks.render(sample.getText(), List.of()));
+        shownMarks = Marks.render(sample.getText(), List.of());
+        matches.setHTML(shownMarks);
         showUnmarked(sample.getText());
         if (!why.isEmpty()) {
             nothing.setText(why);
@@ -249,18 +293,48 @@ public class Sample extends Component {
     // The group of the innermost mark the element is in: a capture's own, 0 for a match, or
     // NO_GROUP outside every mark
     private int groupAt(final EventTarget target) {
+        final Element mark = markAt(target);
+        return mark == null
+                ? RegexController.NO_GROUP
+                : groupOf(mark);
+    }
+
+    // The innermost mark of a group the element is in, or null outside every one
+    private Element markAt(final EventTarget target) {
         if (!Element.is(target)) {
-            return RegexController.NO_GROUP;
+            return null;
         }
         Element at = Element.as(target);
         while (at != null && at != matches.getElement()) {
-            final int group = groupOf(at);
-            if (group != RegexController.NO_GROUP) {
-                return group;
+            if (groupOf(at) != RegexController.NO_GROUP) {
+                return at;
             }
             at = at.getParentElement();
         }
-        return RegexController.NO_GROUP;
+        return null;
+    }
+
+    // A mark's frame: a capture's is before the colon of its frame:index, and a match's its own
+    private static long frameOf(final Element mark) {
+        final String capture = mark.getAttribute(Marks.CAPTURE_ATTR);
+        return capture != null && !capture.isEmpty()
+                ? Long.parseLong(capture.substring(0, capture.indexOf(':')))
+                : Long.parseLong(mark.getAttribute(Marks.FRAME_ATTR));
+    }
+
+    // Whether a click is the second of a double click: soon after the last, and where it was
+    private boolean secondClick(final int x, final int y) {
+        final double now = Duration.currentTimeMillis();
+        final boolean second = now - lastClickAt <= DOUBLE_CLICK_MS
+                               && Math.abs(x - lastClickX) <= DOUBLE_CLICK_SLOP
+                               && Math.abs(y - lastClickY) <= DOUBLE_CLICK_SLOP;
+        // A third click starts again rather than opening twice
+        lastClickAt = second
+                ? 0
+                : now;
+        lastClickX = x;
+        lastClickY = y;
+        return second;
     }
 
     // A mark's group: a capture's is after the colon of its frame:index, and a match is $0
@@ -279,6 +353,14 @@ public class Sample extends Component {
     ///                     capturing group, and [RegexController#NO_GROUP] when it leaves.
     public void setOnGroupPoint(final IntConsumer onGroupPoint) {
         this.onGroupPoint = onGroupPoint;
+    }
+
+    /// Told when a mark is clicked, which selects what it is of.
+    ///
+    /// @param onGroupPin Told the frame of the mark clicked and its group, `0` for a match outside
+    ///                   any capturing group.
+    public void setOnGroupPin(final BiConsumer<Long, Integer> onGroupPin) {
+        this.onGroupPin = onGroupPin;
     }
 
     /// @param onSample Told when sample.

@@ -129,7 +129,7 @@ public class ContentPaneController extends Controller {
                         child.getContentOffset() + child.getContentLength(), colour, title));
             }
         }
-        marks.addAll(captureMarks(trace, cursor, CaptureHues.inScope(trace, cursor)));
+        marks.addAll(captureMarks(trace, cursor, host.captureHues()));
         // Where the dispatch tried and nothing matched: the gaps, marked so an unmatched line is a
         // thing to see, not an absence to infer (design 18 §5.3). One mark per place, however
         // many templates were tried there, and none inside a match.
@@ -209,7 +209,7 @@ public class ContentPaneController extends Controller {
                             "$" + capture.getName() + " = " + shortValue(capture.getValue()) + (frame == null
                                     ? ""
                                     : " — " + frame.getTemplateName() + " #" + frame.getMatchIndex()),
-                            frameId == cursor));
+                            frameId == cursor).withVariable(CaptureHues.variableOf(trace, frameId, i)));
                 }
             }
         }

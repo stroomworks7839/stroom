@@ -39,8 +39,14 @@ public final class Mark {
         MATCH,
         /// A capture's bytes: its hue; the text itself is coloured.
         CAPTURE,
-        /// A place a template was tried and none matched: zero length.
-        GAP
+        /// What a node of a tree matched, in the workbench: a capture with no colour of its own,
+        /// since a node is named by pointing at it, and a hue would name nothing else.
+        NODE,
+        /// Where something failed: no template matched here, or a tree stopped here. Zero length.
+        GAP,
+        /// A place the workbench's template was tried and did not match, which on a trial is no
+        /// failure: a quieter mark than a gap. Zero length.
+        TRIED
     }
 
     /// Outer first: by start, then the longer, then by kind — the cursor's extent outside a
@@ -64,6 +70,7 @@ public final class Mark {
     private final String colour;
     private final String title;
     private final boolean ruled;
+    private final String variable;
 
     public Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
                 final int end, final String colour, final String title) {
@@ -75,6 +82,12 @@ public final class Mark {
     /// @param ruled Whether to draw the rule.
     public Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
                 final int end, final String colour, final String title, final boolean ruled) {
+        this(kind, frameId, index, templateId, start, end, colour, title, ruled, null);
+    }
+
+    private Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
+                 final int end, final String colour, final String title, final boolean ruled,
+                 final String variable) {
         this.kind = kind;
         this.frameId = frameId;
         this.index = index;
@@ -84,6 +97,23 @@ public final class Mark {
         this.colour = colour;
         this.title = title;
         this.ruled = ruled;
+        this.variable = variable;
+    }
+
+    /// This capture, saying which variable it bound, so that pointing at it lights every capture
+    /// of that variable on screen ([stroom.shapeshifter.client.component.CaptureHues#variableOf]).
+    ///
+    /// @param variable The variable's key.
+    /// @return A copy of this mark with the variable.
+    public Mark withVariable(final String variable) {
+        return new Mark(kind, frameId, index, templateId, start, end, colour, title, ruled, variable);
+    }
+
+    /// The variable a capture bound, as `CaptureHues.variableOf` keys it, or null.
+    ///
+    /// @return The key.
+    public String getVariable() {
+        return variable;
     }
 
     /// Whether the mark carries a rule under it (design 18 §5.11.2, ruled 2026-11-16).

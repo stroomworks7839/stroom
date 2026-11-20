@@ -151,6 +151,20 @@ class PatternNodesTest {
     }
 
     @Test
+    void aLabelLeadsBackToItsNode() {
+        // A click on what a node matched selects the node: the inverse of reportedLabel
+        for (final int[] path : List.of(new int[]{0}, new int[]{1}, new int[]{1, 0}, new int[]{2, 1})) {
+            assertThat(PatternNodes.pathOfLabel(ROOT, PatternNodes.reportedLabel(ROOT, path, true)))
+                    .containsExactly(path);
+        }
+        assertThat(PatternNodes.pathOfLabel(ROOT, "opt")).containsExactly(1);
+        // A label no node has, a trial's for a path that is not there, and none
+        assertThat(PatternNodes.pathOfLabel(ROOT, "nothing")).isNull();
+        assertThat(PatternNodes.pathOfLabel(ROOT, PatternNodes.trialLabel(new int[]{7}))).isNull();
+        assertThat(PatternNodes.pathOfLabel(ROOT, null)).isNull();
+    }
+
+    @Test
     void whatALookaroundHoldsIsNotLabelled() {
         // A lookaround consumes nothing, so a group inside it would report nothing
         final PatternNode root = new Sequence(List.of(new PatternNode.Not(A), new PatternNode.Peek(B), C));

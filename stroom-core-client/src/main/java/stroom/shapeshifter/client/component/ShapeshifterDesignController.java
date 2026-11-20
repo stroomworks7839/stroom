@@ -127,6 +127,12 @@ public class ShapeshifterDesignController
     /// The stream, kept the same way and for the same reason: returning to the paste keeps it.
     private SourceLocation keptSampleLocation;
     private TraceModel trace;
+    // The captures' colours at the cursor, kept while neither the run nor the cursor moves: the
+    // input pane and the pattern workbench both read them, and at the document the walk is the
+    // whole tree
+    private CaptureHues captureHues;
+    private TraceModel huesTrace;
+    private long huesCursor;
     private long cursor = TraceModel.ROOT;
     private boolean stale;
     private boolean running;
@@ -808,6 +814,19 @@ public class ShapeshifterDesignController
         return cursor;
     }
 
+    @Override
+    public CaptureHues captureHues() {
+        if (trace == null) {
+            return null;
+        }
+        if (captureHues == null || huesTrace != trace || huesCursor != cursor) {
+            captureHues = CaptureHues.inScope(trace, cursor);
+            huesTrace = trace;
+            huesCursor = cursor;
+        }
+        return captureHues;
+    }
+
     /// Move the cursor to what a panel row stands for: a template's first match, or the document.
     /// Answers whether it moved. Nothing happens where there is no run to move within, or where
     /// the cursor is already inside a match of that template - descending into one selects its
@@ -891,6 +910,10 @@ public class ShapeshifterDesignController
         input.refresh();
         variables.refresh();
         output.refresh();
+        if (workbenchOpen) {
+            // Its groups are their variables' colours, which a run or a step can move
+            workbench.recolour();
+        }
         // Redrawing a pane throws away what was lit in it: the Html is replaced, so the marks
         // carrying `highlight` are gone and `Marks.rest` has cleared the block. The pointer has
         // not moved and the browser fires no `mouseover` for a pointer standing still — and if

@@ -23,6 +23,7 @@ import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -78,6 +79,36 @@ class CaptureHuesTest {
         assertThat(hues.hue(4, 0)).isEqualTo(hues.hue(6, 0));
         // and the key and the value of one pair are still told apart
         assertThat(hues.hue(4, 0)).isNotEqualTo(hues.hue(4, 1));
+    }
+
+    @Test
+    void aVariableIsAskedForByItsTemplateAndName() {
+        // The pattern workbench colours a group bound to a variable as the panes colour the
+        // variable's captures, and numbers the rest past what is allocated
+        final TraceModel trace = trace();
+        final CaptureHues hues = CaptureHues.inScope(trace, TraceModel.ROOT);
+        final String template = trace.frame(4).getTemplateId();
+        final String name = trace.captures(4).get(1).getName();
+
+        assertThat(hues.variableHue(template, name)).isEqualTo(hues.hue(4, 1));
+        assertThat(CaptureHues.variableOf(trace, 6, 1)).isEqualTo(template + "/" + name);
+        assertThat(hues.variableHue(template, "nothing-bound-this")).isNull();
+        assertThat(hues.allocated()).isEqualTo(new HashSet<>(allHues(trace, hues)).size());
+    }
+
+    private static List<String> allHues(final TraceModel trace, final CaptureHues hues) {
+        final List<String> all = new ArrayList<>();
+        for (final long frameId : CaptureHues.reached(trace, TraceModel.ROOT)) {
+            for (int i = 0; i < trace.captures(frameId).size(); i++) {
+                all.add(hues.hue(frameId, i));
+            }
+        }
+        for (final long frameId : trace.path(TraceModel.ROOT)) {
+            for (int i = 0; i < trace.captures(frameId).size(); i++) {
+                all.add(hues.hue(frameId, i));
+            }
+        }
+        return all;
     }
 
     @Test

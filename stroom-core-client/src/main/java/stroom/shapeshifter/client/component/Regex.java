@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
+import java.util.function.IntFunction;
 
 public class Regex
         extends Component {
@@ -242,6 +243,15 @@ public class Regex
 
     public void setPatternMap(final SafeHtml html) {
         patternMap.setHTML(html);
+    }
+
+    /// Colours the groups' rows again, in place, leaving any name being typed where it is.
+    ///
+    /// @param hueOf A group's colour by its number.
+    public void recolourGroups(final IntFunction<String> hueOf) {
+        for (final GroupRow row : groupRows) {
+            row.setHue(hueOf.apply(row.getIndex()));
+        }
     }
 
     /// @param data The groups, `$0` first; with no other, the pattern has no capturing group.

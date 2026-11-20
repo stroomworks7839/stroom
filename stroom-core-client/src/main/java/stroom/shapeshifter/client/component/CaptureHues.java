@@ -136,6 +136,39 @@ public final class CaptureHues {
         return hues.get(key(frameId, index));
     }
 
+    /// The colour of a template's variable, for the pattern workbench, whose groups take the
+    /// colour of the variable they are bound to (ruled 2026-11-20), so that one capture is one
+    /// colour wherever it is drawn.
+    ///
+    /// @param templateId The template that binds it.
+    /// @param name The variable's name.
+    /// @return A CSS colour, or null where no capture of it is in scope.
+    public String variableHue(final String templateId, final String name) {
+        return byVariable.get(variable(templateId, name));
+    }
+
+    /// How many colours are allocated: a hue numbered past this is no variable's in scope.
+    ///
+    /// @return The count.
+    public int allocated() {
+        return next - 1;
+    }
+
+    /// Which variable a capture bound, as a key: the template that bound it and the variable's
+    /// name. Every capture of one key takes one colour, and pointing at one lights them all.
+    ///
+    /// @param trace The run.
+    /// @param frameId The frame that bound it.
+    /// @param index Its index in that frame's captures.
+    /// @return The key.
+    public static String variableOf(final TraceModel trace, final long frameId, final int index) {
+        final Frame frame = trace.frame(frameId);
+        // The document is not a frame object, so it has no template to name its variables by.
+        return variable(frame == null
+                ? "frame-" + frameId
+                : frame.getTemplateId(), trace.captures(frameId).get(index).getName());
+    }
+
     /// Whether a frame's captures are within the tint's reach beneath the cursor — the cursor's
     /// own frame always is.
     ///
@@ -160,13 +193,8 @@ public final class CaptureHues {
     /// the variables pane even when they are nothing in the text.
     private void number(final TraceModel trace, final long frameId) {
         final List<Capture> captures = trace.captures(frameId);
-        final Frame frame = trace.frame(frameId);
-        // The document is not a frame object, so it has no template to name its variables by.
-        final String owner = frame == null
-                ? "frame-" + frameId
-                : frame.getTemplateId();
         for (int i = 0; i < captures.size(); i++) {
-            final String variable = owner + "/" + captures.get(i).getName();
+            final String variable = variableOf(trace, frameId, i);
             String hue = byVariable.get(variable);
             if (hue == null) {
                 hue = Colours.hue(next++);
@@ -174,6 +202,10 @@ public final class CaptureHues {
             }
             hues.put(key(frameId, i), hue);
         }
+    }
+
+    private static String variable(final String owner, final String name) {
+        return owner + "/" + name;
     }
 
     private static String key(final long frameId, final int index) {

@@ -1009,18 +1009,21 @@ Groups
 - **`$0` is a group**: the first row, its swatch the template's own colour (the panel's), and it
   says "whole match" where the others have their declaration. In the sample a match is ruled
   in that colour at rest — the workbench only; the Design tab's matches still draw nothing until
-  pointed at (Q17).
+  pointed at (Q17). *Both are one rule, found the same day (below): a rule marks the level you
+  are looking at.*
 - **The pattern is shown once, under the Groups heading**, not under the Pattern field and not on
   every row (both were considered). Each group is a span, nested as the groups are, so a
   character shows the rule of the innermost group it is in, and the sample does the same.
 - **Pointing at a group shows it alone**, everywhere: at its row, at it in the pattern or at it
   in the sample, it lights its row and leaves only its rule, in the pattern and in every match
   of the sample. Because the spans nest, the others' rules taken away reveal its whole extent.
-  **A click keeps it so**, as it did; the sample lights rather than redraws for a regex's group,
+  **A click keeps it so**, at its row or in the pattern, and since the rule for marks below, on
+  it in the sample; the sample lights rather than redraws for a regex's group,
   so the pointer is never under text that is being replaced.
 - **The pattern and the sample keep their font through their marks.** Stroom sets every span's
   font afresh (`base.css`), which drew a group's or a mark's text in the regular font in the
   middle of monospace. Said of the workbench alone; the Design tab's panes have the same split.
+  *Made general the same day: a mark never changes the font (below).*
 
 **The kind and its form are one pane — ruled and built 2026-11-20.** The match kind sat in a bar
 ruled off from the form under it, and each kind's form scrolled on its own beneath the bar. The
@@ -1035,6 +1038,66 @@ regex line, then the link, and the same tree.
 Stories: `PointingAtAGroupShowsItAlone`. The stories' stubbed pattern inspection had the groups
 one character short (`end` is just past the `)`, `PatternInfo.Group`), and the sample's trial was
 answered with the whole document's run; both are now what the server would say.
+
+**One rule for marks, in both places — ruled and built 2026-11-20.** A review of the editor's
+cognitive load found the Design tab and the workbench marking text by rules that had drifted
+apart: `$0` ruled in one and not the other, groups coloured by number in one and captures by
+variable in the other, one red bar for two meanings, colours on a tree's nodes that named nothing,
+and a click on a mark that descended in one place and opened a text field in the other. Five
+meanings now hold wherever text is marked:
+
+| Channel | Means | Design tab | Workbench |
+|---|---|---|---|
+| Text colour | which variable or group | a capture, by variable (`CaptureHues`) | a group bound to a variable takes that variable's colour (`GroupHues`); an unbound group, a hue numbered past every variable's; a tree's node, none (it keeps the text's colour) |
+| Rule | of the level you are looking at | the cursor's own captures | every match of the template (`$0`) and its groups |
+| Pointing | shows that thing alone, wherever it is | lights the variable in every visible frame | lights the group in every match |
+| Click | selects it | descends into a match | keeps a group shown (`$n`), selects a tree's node; double-click or Enter edits the sample |
+| Red bar | something failed | no template matched here | the tree stopped here; a place merely tried is a grey tick |
+
+And **a mark never changes the font**: `mark.css` says so for every kind, in every pane, which
+retires the workbench-only fix above.
+
+- **`$0` at rest is the rule's case, not an exception to Q17.** It was put to the owner as a choice
+  between the workbench following Q17 and both surfaces underlining "the subject's matches". The
+  second was chosen, and then found to need no change in the Design tab: selecting a template
+  there moves the cursor into its first match (§5.3 of design 18), so the pane shows *one* match's
+  content, whose captures are already ruled, and the matches in it are its children, a level
+  down. The workbench shows the one template's many matches, all of its level. One rule, two
+  answers.
+- **A group's colour is its variable's.** `Colours.hue` had noted that the workbench numbered
+  groups within the pattern while the panes allocated over everything in scope, so one capture
+  could be two colours; that was left open by design 18 §5.11.2, which reasoned about two places
+  a colour appears. `GroupHues` closes it: a group bound to a variable in scope at the cursor
+  takes that variable's colour, and any other group takes one numbered past the panes'
+  allocation, so it is never mistaken for one of theirs. The workbench takes one allocation each
+  time it shows its subject and hands it to the pattern and the sample alike, so the two agree
+  even when a run of the document lands between their drawing; and when a run or a step moves the
+  allocation (`ProjectHost.captureHues`, kept per run and cursor, which the input pane shares),
+  it colours both again, the groups' rows in place so a name being typed keeps the keyboard. A
+  colour moves as the cursor walks, the price `CaptureHues` already pays. A group is looked up
+  by its number and its name alike, in the pattern as in the sample, so a named group bound by
+  its label is one colour in both.
+- **Pointing at a capture lights its variable**, in the Design tab as the workbench lights a
+  group: each capture's mark carries `data-var`, the template and the variable's name, and the
+  request (`Hot.capture`) carries it from the mark or the variables pane's row, so every block
+  lights every mark with the same one. The variable is not part of the request's equality, so the
+  variables pane still lights the one row.
+- **A click selects.** In the sample a click on a mark keeps its group shown, as a click on its row
+  does, and a second click lets it go; for a tree, it selects the node its label is reported
+  under in the frame clicked (`PatternNodes.pathOfLabel`), the selected node's mark lets it go,
+  and a group whose label is unknown selects nothing. Editing the sample moved to a double click
+  or Enter, and a click on an empty sample still opens it. A double click selects and then opens,
+  as one on a file does, and the sample counts it itself, by time and place: the first click can
+  select a tree's node and draw other marks, and the browser does not count a second click on an
+  element that was not there for the first.
+- **Two marks for two meanings.** `Mark.Kind.TRIED` is a place the workbench's template was tried
+  and did not match, a tick in the muted text colour; `GAP` keeps red for a failure, which in the
+  workbench is only where a tree stopped. A tree's node marks are `NODE`: its rule in the focus
+  colour, its text the text's.
+
+Stories: `InputPanePointingLightsAVariable`, `AGroupTakesItsVariablesColour`, and additions to
+`PointingAtAGroupShowsItAlone`, `TheWorkbenchFoldsAnEmptyGuard`, `ANodeMarksWhatItMatched` and
+`ASequenceThatMatchedNowhereSaysWhereItStopped`.
 
 
 ## 5q. The reference is stripped; the bytes travel — ruled and built 2026-09-24

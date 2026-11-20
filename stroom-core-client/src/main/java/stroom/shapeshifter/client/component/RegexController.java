@@ -83,6 +83,8 @@ public class RegexController
     // The group a click keeps shown alone, and the one the pointer is on, here or in the sample
     private int selectedGroup = NO_GROUP;
     private int pointedGroup = NO_GROUP;
+    // The groups' colours: the variables' they are bound to, as the workbench last said
+    private GroupHues hues = GroupHues.NONE;
 
     @Inject
     public RegexController(final EventBus eventBus, final Regex view, final RestFactory restFactory) {
@@ -122,6 +124,30 @@ public class RegexController
     /// @param onGroupSelect The handler.
     public void setOnGroupSelect(final IntConsumer onGroupSelect) {
         this.onGroupSelect = onGroupSelect;
+    }
+
+    /// Takes the groups' colours from the workbench, which hands the sample the same, for the
+    /// next time the groups are shown.
+    ///
+    /// @param hues The groups' colours.
+    void setHues(final GroupHues hues) {
+        this.hues = hues;
+    }
+
+    /// Takes the groups' colours and draws them now: a run or a step moved a variable's colour.
+    /// The rows are coloured in place rather than built again, so a name being typed in one
+    /// keeps the keyboard.
+    ///
+    /// @param hues The groups' colours.
+    void recolour(final GroupHues hues) {
+        this.hues = hues;
+        if (info != null && inspected != null && host.template(templateId) != null) {
+            view.recolourGroups(this::hue);
+            view.setPatternMap(patternMap(inspected.getPattern(), info.getGroups() == null
+                    ? List.of()
+                    : info.getGroups()));
+            light();
+        }
     }
 
     @Override
@@ -320,7 +346,7 @@ public class RegexController
             final CaptureBinding capture = captureOf(template, group.getIndex());
             rows.add(new GroupRowData(group.getIndex(), capture == null
                     ? null
-                    : capture.name(), group.getName(), Colours.hue(group.getIndex()),
+                    : capture.name(), group.getName(), hue(group.getIndex()),
                     group.getIndex() == selectedGroup));
         }
         view.setGroups(rows);
@@ -391,11 +417,24 @@ public class RegexController
     }
 
     // A group's colour: the template's own for $0, the whole match, as its matches are drawn in
-    // the sample, and a generated hue for each capturing group
+    // the sample, and for a capturing group the colour of the variable it is bound to, by its
+    // number or its name (GroupHues), as the sample asks
     private String hue(final int group) {
         return group == 0
                 ? host.colour(templateId)
-                : Colours.hue(group);
+                : hues.hue(group, nameOf(group));
+    }
+
+    // A group's name in the pattern, or null where it has none
+    private String nameOf(final int group) {
+        if (info != null && info.getGroups() != null) {
+            for (final Group candidate : info.getGroups()) {
+                if (candidate.getIndex() == group) {
+                    return candidate.getName();
+                }
+            }
+        }
+        return null;
     }
 
     // One place that says what read-only means here, called when the context changes and

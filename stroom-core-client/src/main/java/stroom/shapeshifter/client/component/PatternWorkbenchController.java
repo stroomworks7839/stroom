@@ -60,6 +60,8 @@ public class PatternWorkbenchController extends Controller {
     private String templateId;
     private BiConsumer<String, String> onRenamePart = (from, to) -> {
     };
+    // The groups' colours the pattern and the sample were last handed
+    private GroupHues hues = GroupHues.NONE;
 
     @Inject
     public PatternWorkbenchController(final EventBus eventBus,
@@ -83,6 +85,10 @@ public class PatternWorkbenchController extends Controller {
         matchEditor.setOnLabelPoint(sample::pointLabel);
         sample.setOnStopped(matchEditor::markStopped);
         matchEditor.setOnLabelSelect(sample::isolate);
+        // A click on a mark in the sample selects what it is of, as a click on its row or its
+        // node does (ruled 2026-11-20)
+        sample.setOnPinGroup(matchEditor::selectGroup);
+        sample.setOnPinLabel(matchEditor::selectLabel);
         guardAndLimits.setOnChange(this::describeGuardAndLimits);
         watch(Contexts.READ_ONLY, locked -> {
             this.readOnly = locked;
@@ -147,6 +153,7 @@ public class PatternWorkbenchController extends Controller {
                 ? ""
                 : template.name(), false);
         view.showGuardAndLimits(true);
+        recolour(id, template);
         matchEditor.setTemplate(id);
         guardAndLimits.setTemplate(id);
         sample.setTemplate(id);
@@ -157,6 +164,29 @@ public class PatternWorkbenchController extends Controller {
         describeGuardAndLimits();
         if (shown && template != null) {
             view.foldGuardAndLimits(Templates.unguardedAndUnlimited(template));
+        }
+    }
+
+    // One set of colours for the pattern and the sample, so the two agree: each group the colour
+    // of the variable it is bound to, as the Design tab's panes draw it (ruled 2026-11-20). Taken
+    // as the subject is shown, which draws them.
+    private void recolour(final String id, final Template template) {
+        hues = GroupHues.of(host, id, template);
+        matchEditor.setHues(hues);
+        sample.setHues(hues);
+    }
+
+    /// Draws the groups in their variables' colours again, if a run of the document or a step of
+    /// its cursor moved any: the Design tab's panes allocate them, and the workbench must not keep
+    /// a colour that is now another variable's.
+    public void recolour() {
+        final GroupHues next = GroupHues.of(host, templateId, templateId == null
+                ? null
+                : host.template(templateId));
+        if (!next.sameAs(hues)) {
+            hues = next;
+            matchEditor.recolour(next);
+            sample.recolour(next);
         }
     }
 
@@ -222,6 +252,7 @@ public class PatternWorkbenchController extends Controller {
         templateId = null;
         view.setSubject("part", name, !readOnly);
         view.showGuardAndLimits(false);
+        recolour(null, null);
         matchEditor.setPattern(name);
         sample.setPattern(name);
     }

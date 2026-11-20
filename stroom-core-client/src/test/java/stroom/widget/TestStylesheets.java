@@ -85,7 +85,6 @@ class TestStylesheets {
             "expression-tree-panel__canvas",
             "expression-tree-panel__items", "explorer__name-filter-panel",
             "file-chooser__button", "form-group__help-text", "form-page", "line-col-input", "line-col-input__field",
-            "mark--own",
             "password-box__status", "pathway-tree__node-icon",
             "pipeline-tree-diagram__canvas", "pipeline-tree-diagram__items", "run-query-button__button",
             "query-editor__results",

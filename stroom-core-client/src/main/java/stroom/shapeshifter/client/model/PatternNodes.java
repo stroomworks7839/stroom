@@ -244,6 +244,39 @@ public final class PatternNodes {
         return label != null && label.matches(TRIAL_LABEL + "([0-9]+(x[0-9]+)*)?");
     }
 
+    /// The node a label is reported under, the inverse of [#reportedLabel]: a trial's label names
+    /// its path, and an author's names the first node, in reading order, that carries it.
+    ///
+    /// @param root The tree.
+    /// @param label The label.
+    /// @return The node's path, or null where no node has it.
+    public static int[] pathOfLabel(final PatternNode root, final String label) {
+        if (label == null) {
+            return null;
+        }
+        if (isTrialLabel(label)) {
+            final int[] path = pathOfTrialLabel(label);
+            return get(root, path) == null
+                    ? null
+                    : path;
+        }
+        return find(root, label, new int[0]);
+    }
+
+    private static int[] find(final PatternNode at, final String label, final int[] path) {
+        if (at instanceof PatternNode.Labelled labelled && label.equals(labelled.label())) {
+            return path;
+        }
+        final List<PatternNode> children = children(at);
+        for (int i = 0; i < children.size(); i++) {
+            final int[] found = find(children.get(i), label, child(path, i));
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
     /// The label a node's stretch is reported under in the trial: its own if it has one, else
     /// its trial label; null for the root, whose stretch is the match's own, and for an
     /// unlabelled node in a peek or a not, which the trial leaves unlabelled ([#labelEvery]).

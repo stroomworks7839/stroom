@@ -55,13 +55,10 @@ final class Colours {
     /// own colour, and one lightness cannot clear 4.5:1 against both the light theme's control
     /// surface and the dark theme's.
     ///
-    /// The index means different things to different callers, and they do not agree as a result:
-    /// the pattern workbench and the sample pane pass a group's number within its pattern, while
-    /// the content and variables panes pass a position in [CaptureHues]'s allocation over
-    /// everything in scope. So one capture can be one colour beside its pattern and another in
-    /// the panes. That follows from the ruling that the variables pane owns a capture's colour
-    /// (design 18 §5.11.2) and is not yet resolved — §5.11.2 reasoned about two places a colour
-    /// appears, and the pattern workbench is a third.
+    /// The index is a position in an allocation: [CaptureHues]'s over everything a cursor can
+    /// see, and [GroupHues]'s for the pattern workbench, which gives a group bound to a variable
+    /// that variable's colour and numbers the rest past the panes' (ruled 2026-11-20), so one
+    /// capture is one colour beside its pattern and in the panes.
     ///
     /// It lives here rather than on a controller because [CaptureHues] has to be testable: a
     /// controller's static initialiser calls `GWT.create`, which a plain JUnit test cannot.

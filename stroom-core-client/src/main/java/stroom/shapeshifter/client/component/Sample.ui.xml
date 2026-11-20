@@ -14,9 +14,10 @@
                      addStyleNames="max default-min-sizes">
         <ss:CollapsiblePane ui:field="samplePane" heading="Sample">
             <!-- At rest the sample fills the pane, its matches marked, as the Design tab's
-                 input is. Clicked, or Enter on it, it is the field it is edited in; leaving the
-                 field, or Escape, marks it again: the strip's match box, which reads at rest and
-                 opens to be changed (design 47 B). -->
+                 input is. A click on a mark selects its group. Double-clicked, or Enter on it,
+                 it is the field it is edited in; leaving the field, or Escape, marks it again:
+                 the strip's match box, which reads at rest and opens to be changed (design 47
+                 B). -->
             <g:FlowPanel styleName="max sample__input">
                 <g:FocusPanel ui:field="read" styleName="sample__read">
                     <g:FlowPanel>

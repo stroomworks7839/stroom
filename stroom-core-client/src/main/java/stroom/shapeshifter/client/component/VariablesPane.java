@@ -91,7 +91,7 @@ public class VariablesPane extends Component {
             for (final Row row : section.getRows()) {
                 final FlowPanel line = new FlowPanel();
                 line.addStyleName("variables-pane__row");
-                final Hot hot = Hot.capture(row.getFrameId(), row.getIndex());
+                final Hot hot = Hot.capture(row.getFrameId(), row.getIndex(), row.getVariable());
                 lines.put(hot, line);
                 line.addDomHandler(event -> onHover.accept(hot), MouseOverEvent.getType());
                 line.addDomHandler(event -> onHover.accept(null), MouseOutEvent.getType());

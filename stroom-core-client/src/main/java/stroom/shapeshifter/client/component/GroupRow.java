@@ -145,6 +145,14 @@ public class GroupRow extends Composite {
 
     /// Told when the name bound to this group is committed, with the group's index.
     ///
+    /// Colours the row's chip again, in place: a run or a step moved its variable's colour, and
+    /// rebuilding the row would take the keyboard from a name being typed in it.
+    ///
+    /// @param hue The colour.
+    public void setHue(final String hue) {
+        CssProperties.set(chip.getElement(), "--chip__colour", hue);
+    }
+
     /// @param onName The handler.
     public void setOnName(final BiConsumer<Integer, String> onName) {
         this.onName = onName;

@@ -145,6 +145,10 @@ public final class ShapeshifterTreeStories {
                     play.waitFor(() -> play.expect(play.querySelectorAll(NODE_MARK).count()).toEqual(2));
                     play.expect(play.querySelectorAll(NODE_MARK).first().textContent()).toEqual("=");
                     play.expect(play.querySelectorAll(NODE_MARK).first()).toHaveAttribute("title", "tag \"=\"");
+                    // A node has no colour of its own, so its text keeps the sample's: a hue here
+                    // would name nothing else on screen (ruled 2026-11-20)
+                    play.expect(play.querySelectorAll(NODE_MARK).first()).toHaveClass("mark--node");
+                    play.expect(play.querySelectorAll(NODE_MARK).first()).not().toHaveAttribute("style");
                     // Pointing at another shows it instead, and leaving it shows the chosen again
                     play.hover(node(play, "^take_while \\[a-z\\]"));
                     play.waitFor(() -> play.expect(play.querySelectorAll(NODE_MARK).first().textContent())
@@ -153,6 +157,12 @@ public final class ShapeshifterTreeStories {
                     play.unhover(node(play, "^take_while \\[a-z\\]"));
                     play.waitFor(() -> play.expect(play.querySelectorAll(NODE_MARK).first().textContent())
                             .toEqual("="));
+                    // A click on the chosen node's mark lets it go, as a click on a regex's group
+                    // kept shown does (ruled 2026-11-20), and does not open the sample to edit it
+                    play.click(play.querySelectorAll(NODE_MARK).first());
+                    play.waitFor(() -> play.expect(play.querySelectorAll(NODE_MARK).count()).toEqual(0));
+                    play.expect(node(play, "^tag \"=\"$")).not().toHaveAttribute("aria-selected", "true");
+                    play.expect(play.getByLabelText("Sample text to match against")).not().toBeVisible();
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 // A sequence that matched nowhere says how far it got: its first node matched the
@@ -166,6 +176,10 @@ public final class ShapeshifterTreeStories {
                             .querySelector(".pattern-tree__node-label--stopped")).toBeVisible();
                     play.expect(play.querySelector(".sample__read .mark--gap[title^='Stopped here']"))
                             .not().toBeNull();
+                    // Red, where the trial's other places are quiet ticks: stopping is a failure
+                    // and not matching on a trial is none (ruled 2026-11-20)
+                    play.expect(play.querySelector(".sample__read .mark--gap[title^='Stopped here']"))
+                            .not().toHaveClass("mark--tried");
                     // The run that got furthest is drawn, and its node is there to point at
                     play.hover(node(play, "^take_while \\[a-z\\]"));
                     play.waitFor(() -> play.expect(play.querySelectorAll(NODE_MARK).first().textContent())

@@ -100,21 +100,44 @@
 
 /* A ruled match: the workbench's sample, where the whole match is a group, `$0`, listed with its
    colour beside the others (ruled 2026-11-20). Its rule sits under its captures', so a character
-   shows the rule of the innermost group it is in, as the pattern above it does. The Design tab's
-   matches are never ruled: there, a match draws nothing until it is pointed at. */
+   shows the rule of the innermost group it is in, as the pattern above it does.
+
+   It is the rule a capture follows, not an exception to Q17: a rule says "this is of the level
+   you are looking at". The workbench looks at one template, so its matches are of that level;
+   the Design tab looks at one frame, the cursor, and the matches in its content are its
+   children, a level down, so they draw nothing until they are pointed at. */
 .mark.mark--ruled {
     border-bottom-color: color-mix(in srgb, var(--hue) 75%, transparent);
 }
 
-/* The workbench's sample is pattern data, as typed (shapeshifter-design.css, Code): its marks keep
-   the sample's font and size, which Stroom would set afresh on every span (base.css), and so
-   leave a line in two fonts where a mark starts. Said of the sample alone for now: the Design
-   tab's panes have the same split, and are a ruling of their own to make. */
-.sample__read .mark,
-.sample__read .mark--capture,
-.sample__read .mark--gap {
+/* A mark never changes the font (ruled 2026-11-20). Every pane marks data, as typed or as
+   written (shapeshifter-design.css, Code), and Stroom sets a span's font afresh (base.css), which
+   left a line in two fonts wherever a mark started: the text's own, then Stroom's sans. */
+.mark,
+.mark--capture,
+.mark--gap,
+.mark--instruction,
+.mark--own,
+.mark--dim {
     font-family: inherit;
     font-size: inherit;
+    font-weight: inherit;
+}
+
+/* A place the workbench's template was tried and did not match. On a trial that is no failure,
+   so it is a quiet tick in the muted text colour; red is kept for where something did fail, a
+   line no template matched or the place a tree stopped (ruled 2026-11-20). */
+.mark--gap.mark--tried {
+    background-color: var(--text-color--muted);
+}
+
+/* What a tree's node matched (the workbench): a node has no colour of its own, as a group bound
+   to a variable does, so its text keeps the text's colour and its rule is the focus colour,
+   the one Stroom says "this one" with. A hue here would be a colour that names nothing else on
+   screen (ruled 2026-11-20). */
+.mark--capture.mark--node {
+    --hue: var(--focus-border);
+    color: inherit;
 }
 
 /* The output pane's two channels, the same pair the content pane draws over a capture and

@@ -102,7 +102,7 @@ public class VariablesPaneController extends Controller {
             for (int c = 0; c < captures.size(); c++) {
                 final Capture capture = captures.get(c);
                 rows.add(new Row(id, c, "$" + capture.getName(), capture.getType(), capture.getValue(),
-                        hues.hue(id, c)));
+                        hues.hue(id, c), CaptureHues.variableOf(trace, id, c)));
             }
             final boolean own = id == host.cursor();
             sections.add(new Section(id, own
@@ -184,9 +184,18 @@ public class VariablesPaneController extends Controller {
         private final String type;
         private final String value;
         private final String colour;
+        private final String variable;
 
+        /// @param frameId The frame that bound it.
+        /// @param index Its index in that frame's captures.
+        /// @param name Its name, as shown.
+        /// @param type Its type, or null for a string.
+        /// @param value Its value.
+        /// @param colour Its colour.
+        /// @param variable The variable it bound, as `CaptureHues.variableOf` keys it.
         public Row(final long frameId, final int index, final String name, final String type, final String value,
-                   final String colour) {
+                   final String colour, final String variable) {
+            this.variable = variable;
             this.frameId = frameId;
             this.index = index;
             this.name = name;
@@ -217,6 +226,11 @@ public class VariablesPaneController extends Controller {
 
         public String getColour() {
             return colour;
+        }
+
+        /// @return The variable it bound, as `CaptureHues.variableOf` keys it.
+        public String getVariable() {
+            return variable;
         }
     }
 

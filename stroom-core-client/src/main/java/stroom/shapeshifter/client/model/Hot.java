@@ -36,28 +36,41 @@ public final class Hot {
     private final long frameId;
     private final int index;
     private final String templateId;
+    // Which variable a capture bound, derived from its frame and index, so not part of equality
+    private final String variable;
 
-    private Hot(final Kind kind, final long frameId, final int index, final String templateId) {
+    private Hot(final Kind kind, final long frameId, final int index, final String templateId,
+                final String variable) {
         this.kind = kind;
         this.frameId = frameId;
         this.index = index;
         this.templateId = templateId;
+        this.variable = variable;
     }
 
     public static Hot frame(final long frameId, final String templateId) {
-        return new Hot(Kind.FRAME, frameId, -1, templateId);
+        return new Hot(Kind.FRAME, frameId, -1, templateId, null);
     }
 
-    public static Hot capture(final long frameId, final int index) {
-        return new Hot(Kind.CAPTURE, frameId, index, null);
+    /// A capture, saying which variable it bound: pointing at one lights every capture of that
+    /// variable on screen (ruled 2026-11-20), as a colour belongs to a variable rather than to one
+    /// binding of it.
+    ///
+    /// @param frameId The frame that bound it.
+    /// @param index Its index in that frame's captures.
+    /// @param variable The variable, as `CaptureHues.variableOf` keys it, or null to light the
+    ///                 one capture alone.
+    /// @return The request.
+    public static Hot capture(final long frameId, final int index, final String variable) {
+        return new Hot(Kind.CAPTURE, frameId, index, null, variable);
     }
 
     public static Hot instruction(final long frameId, final int index) {
-        return new Hot(Kind.INSTRUCTION, frameId, index, null);
+        return new Hot(Kind.INSTRUCTION, frameId, index, null, null);
     }
 
     public static Hot template(final String templateId) {
-        return new Hot(Kind.TEMPLATE, -1, -1, templateId);
+        return new Hot(Kind.TEMPLATE, -1, -1, templateId, null);
     }
 
     public Kind getKind() {
@@ -74,6 +87,14 @@ public final class Hot {
 
     public String getTemplateId() {
         return templateId;
+    }
+
+    /// The variable a capture bound, or null. Not part of equality: it follows from the frame
+    /// and the index, and a request without it names the same capture.
+    ///
+    /// @return The variable's key.
+    public String getVariable() {
+        return variable;
     }
 
     /// The value a marked element carries for this request in the attribute it is matched by.
