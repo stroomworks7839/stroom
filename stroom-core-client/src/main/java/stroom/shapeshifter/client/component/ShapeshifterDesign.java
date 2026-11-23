@@ -86,7 +86,7 @@ public class ShapeshifterDesign extends Component {
         // sample needs room in, then the output, then the variables
         dataPanes = new FoldingPanes(data)
                 .add(inputPane, "*")
-                .add(variablesPane, "22%")
+                .add(variablesPane, "30%")
                 .add(outputPane, "33%")
                 .restFirst(inputPane, outputPane, variablesPane);
         dataPanes.setOnFold(pane -> {

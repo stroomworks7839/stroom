@@ -476,7 +476,7 @@ the click that opened a dialog opens the card, and OK is OK. What D changes ther
 it happens, which the counts do not see. Its saving in actions is on the kinds A's line
 cannot say, and rungs 4 to 6 are where those are.
 
-### E — The template at full height — tried 2026-11-18, not yet ruled
+### E — The template at full height — tried 2026-11-18, ruled as built 2026-11-23
 
 Not a proposal about actions: about room. The walkthroughs kept running into the same thing
 from different sides. The body is where an author spends most of a rung, and it was the
@@ -692,7 +692,12 @@ templated line is split into its sequence (2026-11-17, §3).
 1. **E: the layout.** Built to be looked at. *Recommended: keep it if a debugging session on a
    long sample reads well in it; that has not been tried.* **Ruled 2026-11-23: a long sample
    first.** `ShapeshifterLongSampleStories` is one — forty records, 364 lines, two levels of
-   matches — stepped through with the panes open and folded; awaiting the ruling on what it shows.
+   matches — stepped through with the panes open and folded. **Ruled 2026-11-23, on seeing it: as
+   built.** The output follows the cursor, a message leads to its line, and folding gives one
+   pane the column. Two faults it showed were ruled and built with it: Variables has 30% of the
+   column and not 22%, which showed two names; and the match line and the cards show spaces as
+   they are written, where ` *([a-z_]+)` read as `*([a-z_]+)`. A line break in either is ⏎. A space the match starts
+   or ends with has a faint dot behind it at rest, where there is nothing beside it to show it.
 2. **D: a draft, or live commit as design 18 Q12 has it.** Built as a draft, for the reason
    in §3 D. **Ruled 2026-11-23: the draft**, and Q12 amended. *Recommended: the draft, and Q12 amended to say so — live commit asks the author
    to know which keystrokes made an instruction.*
@@ -719,7 +724,7 @@ templated line is split into its sequence (2026-11-17, §3).
 9. **J**: a toolbar action that wraps rows in *only if it writes something*. *Recommended:
    decided after H and I are walked, against what the idiom then costs.*
 
-**Order:** A, D and C are built; B was ruled as built 2026-11-23, and E waits on its long sample. From here, §7.6.
+**Order:** A, D and C are built; B was ruled as built 2026-11-23, and E the same day. From here, §7.6.
 
 ## 6. What this does not cover
 
@@ -797,8 +802,8 @@ ruling. **Ruling** means there is a choice to make first.
 | 15 | A pattern part is still named in a prompt, both when it is added and when it is extracted, where a template and a mode are named in their titles | §3 B | *Fixed* 2026-11-19 for adding; extracting keeps its prompt, on purpose (§7.7) |
 | 16 | The mode pane does not list the sites that dispatch into the mode | §3 C | Proposal, small |
 | 17 | A card cannot be dropped on a list's `+ instruction` | §3 E | *Fixed* 2026-11-19 (§7.7) |
-| 18 | Nobody has debugged a long sample in E's layout | §3 E | To try, before E is ruled |
-| 19 | D's draft departs from design 18 Q12's live commit | §3 D | **Ruling**, §5 item 2 |
+| 18 | Nobody has debugged a long sample in E's layout | §3 E | *Done* 2026-11-23: a long sample, and E ruled as built |
+| 19 | D's draft departs from design 18 Q12's live commit | §3 D | *Ruled* 2026-11-23: the draft, §5 item 2 |
 | 20 | Rung 6 cannot be walked until the story can serve a stream fixture | 46 §6.5 | Ruled 2026-11-12, not built |
 | 21 | B′: a template from selected sample text | §3 B | Proposal, the largest and least certain |
 

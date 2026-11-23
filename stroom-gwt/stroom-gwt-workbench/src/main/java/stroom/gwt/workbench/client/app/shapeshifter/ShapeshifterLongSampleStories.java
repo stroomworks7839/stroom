@@ -20,6 +20,7 @@ import stroom.gwt.workbench.client.app.rest.RestFixtures;
 import stroom.gwt.workbench.client.app.rest.RestReply;
 import stroom.gwt.workbench.client.app.screen.StroomDom;
 import stroom.gwt.workbench.framework.client.play.Play;
+import stroom.gwt.workbench.framework.client.play.Query;
 import stroom.gwt.workbench.framework.client.play.TextMatch;
 import stroom.gwt.workbench.framework.client.story.StoryContext;
 import stroom.gwt.workbench.framework.client.story.StoryLayout;
@@ -111,6 +112,35 @@ public final class ShapeshifterLongSampleStories {
                         play.click(play.getByTitle(NEXT));
                     }
                     play.waitFor(() -> play.expect(play.getByText("21/" + RUN.fields, STEPPER_INDEX)).toBeVisible());
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // A pattern and a card's text are shown with their spaces as they are written, on
+                // one line: ` *([a-z_]+)` is not `*([a-z_]+)`
+                .story("SpacesAreShownAsWritten", ShapeshifterLongSampleStories::render)
+                .withPlay(play -> {
+                    Walkthrough.expectTried(play, "field", String.valueOf(RUN.fields));
+                    ShapeshifterEditorStories.selectTemplate(play, "field");
+                    final Query pattern = play.querySelector(".template-strip__match-pattern");
+                    play.waitFor(() -> play.expect(pattern.textContent()).toMatch(TextMatch.regex("^ \\*")));
+                    play.expect(pattern.computedStyle("white-space")).toEqual("pre");
+                    // The leading space is marked, and opened the field holds it and no mark
+                    final Query mark = play.querySelector(".template-strip__match-space");
+                    play.expect(mark.textContent()).toEqual(" ");
+                    play.expect(mark).toBeVisible();
+                    // In the pattern's own font, so that a space is as wide as its dot
+                    play.expect("the space is a character wide", () ->
+                            mark.element().get().getOffsetWidth() >= 7).toEqual(true);
+                    final Query text = play.querySelector(".body-card__literal");
+                    play.expect(text.textContent()).toMatch(TextMatch.regex("^\" {4}<field"));
+                    play.expect(text.computedStyle("white-space")).toEqual("pre");
+                    play.click(pattern);
+                    play.waitFor(() -> play.expect(play.getByLabelText("Match pattern"))
+                            .toHaveValue(" *([a-z_]+) = ([^\\n]*)\\n"));
+                    play.keyboard("{Escape}");
+                    // A pattern with no space at its edges has no mark
+                    ShapeshifterEditorStories.selectTemplate(play, "record");
+                    play.waitFor(() -> play.expect(pattern.textContent()).toMatch(TextMatch.regex("^event ")));
+                    play.expect(mark).toBeNull();
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 // The variables and the output folded, the input with the column

@@ -106,7 +106,8 @@
     color: var(--text-color--muted);
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    /* On one line, with its spaces as they are written */
+    white-space: pre;
     flex: 1;
     min-width: 0;
 }

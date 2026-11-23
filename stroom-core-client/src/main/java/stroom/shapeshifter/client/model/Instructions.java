@@ -1047,6 +1047,15 @@ public final class Instructions {
         final String shown = text.length() > 60
                 ? text.substring(0, 57) + "…"
                 : text;
-        return "\"" + shown.replace("\n", "⏎") + "\"";
+        return "\"" + oneLine(shown) + "\"";
+    }
+
+    /// Text as it reads on one line that shows its spaces as they are written: a line break would
+    /// break the line it is shown on, so it is shown as a sign.
+    ///
+    /// @param text The text.
+    /// @return The text with no line break in it.
+    public static String oneLine(final String text) {
+        return text.replace("\r\n", "⏎").replace('\n', '⏎').replace('\r', '⏎');
     }
 }

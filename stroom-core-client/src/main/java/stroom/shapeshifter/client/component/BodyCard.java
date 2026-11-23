@@ -107,7 +107,7 @@ public class BodyCard extends Composite {
         }
         final String kindName = Instructions.kind(node);
         kind.setText(kindName);
-        summary.setText(Instructions.describe(node));
+        summary.setText(Instructions.oneLine(Instructions.describe(node)));
         summary.setTitle(Instructions.describe(node));
         head.setTitle("Click to edit this " + kindName);
         if (enabled) {

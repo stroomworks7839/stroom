@@ -136,7 +136,22 @@
     font-size: var(--font-size-13);
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    /* On one line, with its spaces as they are written: a space is part of a pattern */
+    white-space: pre;
+}
+
+/* A space the match starts or ends with: a faint dot behind each, one to a character of the
+   pattern's monospaced text, so that the text itself is unchanged. */
+.template-strip__match-space {
+    /* The pattern's own font, and not the one the page gives every element */
+    font: inherit;
+    color: var(--text-color--muted);
+    /* Two pixels square and on whole pixels: a round one is smeared wide enough to read as a
+       hyphen, which would be part of the pattern */
+    background-image: linear-gradient(to right, transparent 3px, currentColor 3px 5px, transparent 5px);
+    background-size: 1ch 2px;
+    background-position: 0 50%;
+    background-repeat: repeat-x;
 }
 
 /* The match, open. The box round it is already a field's, so this has none of its own: the

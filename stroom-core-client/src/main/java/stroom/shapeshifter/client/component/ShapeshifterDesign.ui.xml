@@ -41,7 +41,7 @@
                                  other two can have its room; the input takes what they leave. No
                                  pane can be dragged smaller than its bar. -->
                             <split:SplitPane ui:field="data" vertical="true" thin="true"
-                                             sizes="*, 22%, 33%" minSizes="26px, 26px, 26px"
+                                             sizes="*, 30%, 33%" minSizes="26px, 26px, 26px"
                                              names="Input, Variables, Output"
                                              addStyleNames="max default-min-sizes">
                                 <ss:CollapsiblePane ui:field="inputPane" heading="Input">

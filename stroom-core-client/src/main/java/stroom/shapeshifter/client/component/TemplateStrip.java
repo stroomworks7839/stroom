@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.shapeshifter.client.model.Instructions;
 import stroom.shapeshifter.client.model.MatchKind;
 import stroom.shapeshifter.client.model.MatchLine;
 import stroom.shapeshifter.client.model.MatchRole;
@@ -30,6 +31,7 @@ import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.KeyCodes;
@@ -473,6 +475,34 @@ public class TemplateStrip extends Component {
         note.setTitle(noteTitle);
     }
 
+    // The match at rest, with the spaces it starts and ends with marked: at an edge there is
+    // nothing beside a space to show that it is there. The marks are drawn behind the spaces, so
+    // what is read, copied or searched for is the match itself.
+    private void showSummary(final String summary) {
+        int from = 0;
+        while (from < summary.length() && summary.charAt(from) == ' ') {
+            from++;
+        }
+        int to = summary.length();
+        while (to > from && summary.charAt(to - 1) == ' ') {
+            to--;
+        }
+        matchSummary.setText(summary.substring(from, to));
+        if (from > 0) {
+            matchSummary.getElement().insertFirst(spaces(summary.substring(0, from)));
+        }
+        if (to < summary.length()) {
+            matchSummary.getElement().appendChild(spaces(summary.substring(to)));
+        }
+    }
+
+    private static Element spaces(final String spaces) {
+        final Element mark = Document.get().createSpanElement();
+        mark.setClassName("template-strip__match-space");
+        mark.setInnerText(spaces);
+        return mark;
+    }
+
     public void setRole(final boolean visible, final MatchRole value, final boolean enabled, final String note,
                         final boolean problem) {
         roleLine.setVisible(visible);
@@ -499,7 +529,7 @@ public class TemplateStrip extends Component {
         guardSet = guarded;
         this.line = line;
         matchKind.setText(kind);
-        matchSummary.setText(summary);
+        showSummary(Instructions.oneLine(summary));
         matchSummary.setTitle(summary);
         matchChip.setTitle(line == null
                 ? "Open the pattern workbench — editing, validation, groups, the plan"

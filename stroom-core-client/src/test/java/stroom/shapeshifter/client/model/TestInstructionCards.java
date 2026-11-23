@@ -189,6 +189,13 @@ class TestInstructionCards {
                 .isInstanceOf(ConfigException.class).hasMessageContaining("quote inside ${…} is not closed");
     }
 
+    @Test
+    void aSummaryIsOneLineWithItsSpacesKept() {
+        assertThat(Instructions.oneLine("  a  b ")).isEqualTo("  a  b ");
+        assertThat(Instructions.oneLine("a\nb\r\nc\rd")).isEqualTo("a⏎b⏎c⏎d");
+        assertThat(Instructions.oneLine("")).isEmpty();
+    }
+
     private static OutputNode group(final int group) {
         return new ValueOf(RefExpression.group(group));
     }
