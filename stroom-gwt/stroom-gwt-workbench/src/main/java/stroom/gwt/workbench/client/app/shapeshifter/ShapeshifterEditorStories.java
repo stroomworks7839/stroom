@@ -825,10 +825,11 @@ public final class ShapeshifterEditorStories {
                     play.waitFor(() -> play.expect(play.getAllByText("text", CARD_KIND).count())
                             .toSatisfy("a fourth text card", count -> ((Integer) count) == 4));
                     play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
-                    // and another is open after it, its kind left to what is typed, with the
-                    // keyboard for the next
-                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
-                    play.expect(play.getByLabelText("Instruction")).toHaveValue("auto");
+                    // and no other opens after it: a card of a chosen kind is a form filled in, not
+                    // a line typed, and an empty line after it was left open on every finished
+                    // body (design 48 C10). The add link is back for the next.
+                    play.waitFor(() -> play.expect(play.queryByLabelText(Walkthrough.ENTRY)).toBeNull());
+                    play.expect(addLink(play)).toBeInTheDocument();
                     expectNoProblems(play);
                 })
                 // Cancel adds no card and leaves the document clean

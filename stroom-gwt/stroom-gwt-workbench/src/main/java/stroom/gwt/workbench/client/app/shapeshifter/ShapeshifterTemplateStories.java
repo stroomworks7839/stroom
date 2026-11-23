@@ -322,7 +322,7 @@ public final class ShapeshifterTemplateStories {
                     play.waitFor(() -> play.expect(play.getByText(KV_MODE)).toBeVisible());
                     play.click(play.getByText(KV_MODE));
                     // It names where it is dispatched from, as a template's header does
-                    play.waitFor(() -> play.expect(play.getByText("dispatched from source (body pos 2)",
+                    play.waitFor(() -> play.expect(play.getByText("dispatched from source",
                             ".template-strip__role-note")).toBeVisible());
                     // It is dispatched already, so there is nothing to offer
                     play.expect(play.queryByRole("button", StroomDom.button("dispatch from the document")))

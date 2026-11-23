@@ -360,8 +360,7 @@ public final class ShapeshifterSplitStories {
         play.waitFor(() -> play.expect(play.getByRole("button", StroomDom.button("record_body"))).toBeVisible());
         play.waitFor(() -> play.expect(card.getByLabelText("Name")).toHaveFocus());
         play.keyboard("{Enter}");
-        play.waitFor(() -> play.expect(card.queryByLabelText("Name")).toBeNull());
-        play.keyboard("{Escape}");
+        play.waitFor(() -> play.expect(play.queryByLabelText("Instruction")).toBeNull());
         // The variable's own list is the first of the two that end with + instruction
         dispatch(play, screen, link(play, 0), "$1", "data_columns");
     }
@@ -381,9 +380,8 @@ public final class ShapeshifterSplitStories {
         play.keyboard("{Tab}");
         ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Operator"), "exists");
         play.click(card.getByRole("button", StroomDom.button("OK")));
-        // Taken: the card open now is the next one, its kind left to what is typed
-        play.waitFor(() -> play.expect(card.getByLabelText("Instruction")).toHaveValue("auto"));
-        play.keyboard("{Escape}");
+        // Taken, and nothing opens after it (design 48 C10)
+        play.waitFor(() -> play.expect(play.queryByLabelText("Operator")).toBeNull());
         // The if's own list: the second of three now — the variable's, the if's, the body's
         play.click(link(play, 1));
         Walkthrough.enterNext(play, Walkthrough.typed("\\n   <record>${record_body}\\n   </record>"));
@@ -475,7 +473,7 @@ public final class ShapeshifterSplitStories {
     }
 
     // A dispatch into a mode, from the card a link opens: an apply-templates, its Select and
-    // its Mode, taken with Enter in the Select. The card that opens after it is left.
+    // its Mode, taken with Enter in the Select, after which nothing is open.
     private static void dispatch(final Play play, final Play screen, final Query link, final String select,
                                  final String mode) {
         play.waitFor(() -> play.expect(link).toBeVisible());
@@ -488,8 +486,8 @@ public final class ShapeshifterSplitStories {
         play.expect(card.getByLabelText("Mode")).toHaveValue(mode);
         card.type(card.getByLabelText("Select"), select);
         play.keyboard("{Enter}");
-        play.waitFor(() -> play.expect(card.queryByLabelText("Select")).toBeNull());
-        play.keyboard("{Escape}");
+        // Taken, and no line opens after a card of a chosen kind (design 48 C10)
+        play.waitFor(() -> play.expect(play.queryByLabelText("Select")).toBeNull());
     }
 
     // One of the `+ instruction` links on screen, by its place: a list that holds others ends

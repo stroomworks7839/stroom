@@ -171,9 +171,12 @@ public final class Modes {
         return only;
     }
 
-    /// The sites that dispatch into a mode, as the strip names them: the template and the
-    /// position in its body of the top-level instruction the site is, or sits inside —
-    /// `header_record (body pos 1)` — in the project's order.
+    /// The sites that dispatch into a mode, as the strip names them, in the project's order: the
+    /// template, and where one template dispatches into the mode from more than one of its
+    /// top-level instructions, the position of each — `rec (body pos 1)`, `rec (body pos 3)`.
+    ///
+    /// The position was said of every site, and it is engine's words the author has to read past
+    /// on every template; it is needed only to tell two sites in one body apart (design 48 C10).
     ///
     /// @param project The project.
     /// @param mode The mode, or null for the templates with no mode.
@@ -181,13 +184,28 @@ public final class Modes {
     public static List<String> dispatchSites(final Project project, final String mode) {
         final List<String> sites = new ArrayList<>();
         for (final Template template : project.templates()) {
+            final List<Integer> at = new ArrayList<>();
             for (int i = 0; i < template.body().size(); i++) {
                 if (appliesInto(template.body().get(i), mode)) {
-                    sites.add(template.name() + " (body pos " + (i + 1) + ")");
+                    at.add(i + 1);
                 }
             }
+            sites.addAll(siteNames(template, at));
         }
         return sites;
+    }
+
+    // A template's sites into a mode by name, at the positions given: the name alone for one,
+    // and with each position where there are more, to tell them apart
+    private static List<String> siteNames(final Template template, final List<Integer> positions) {
+        if (positions.size() == 1) {
+            return List.of(template.name());
+        }
+        final List<String> names = new ArrayList<>();
+        for (final int position : positions) {
+            names.add(template.name() + " (body pos " + position + ")");
+        }
+        return names;
     }
 
     // Whether an instruction is, or holds, an apply-templates into a mode
@@ -301,6 +319,7 @@ public final class Modes {
         final List<String> named = new ArrayList<>();
         for (final Template template : project.templates()) {
             final List<OutputNode> body = template.body();
+            final List<Integer> at = new ArrayList<>();
             for (int i = 0; i < body.size(); i++) {
                 // One walk names the sites as it counts them: the top-level instruction a site
                 // is, or sits inside, named once however many it holds
@@ -312,8 +331,11 @@ public final class Modes {
                     return directive;
                 });
                 if (held.size() > before) {
-                    named.add(template.name() + " (body pos " + (i + 1) + ")");
+                    at.add(i + 1);
                 }
+            }
+            if (!at.isEmpty()) {
+                named.addAll(siteNames(template, at));
             }
         }
         if (!held.isEmpty()) {

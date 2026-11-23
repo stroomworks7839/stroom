@@ -459,15 +459,14 @@ public final class ShapeshifterCardStories {
                     play.click(dialog.getByRole("button", StroomDom.button("OK")));
                     play.waitFor(() -> play.expect(play.getByRole("button", StroomDom.button("cells")))
                             .toBeVisible());
-                    // A for-each over the list, taken; the card that opens after it is left
+                    // A for-each over the list, taken: no line opens after a chosen kind
                     ShapeshifterEditorStories.newCard(play, screen, "for-each");
                     final Play walk = ShapeshifterEditorStories.cardEditor(play);
                     play.waitFor(() -> play.expect(walk.getByLabelText("Select")).toBeVisible());
                     walk.type(walk.getByLabelText("Select"), "cells");
                     walk.type(walk.getByLabelText("As"), "c");
                     play.click(walk.getByRole("button", StroomDom.button("OK")));
-                    play.waitFor(() -> play.expect(walk.getByLabelText("Instruction")).toHaveValue("auto"));
-                    play.keyboard("{Escape}");
+                    play.waitFor(() -> play.expect(play.queryByLabelText("As")).toBeNull());
                     // The for-each's own list is the first of the two that end with + instruction
                     play.click(play.getAllByTitle(ShapeshifterEditorStories.ADD_LINK).nth(0));
                     final Play card = ShapeshifterEditorStories.cardEditor(play);

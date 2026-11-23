@@ -430,8 +430,11 @@ public class BodyController extends Controller {
     }
 
     // Enter, or OK. A card's own draft is taken, and the keyboard goes back to its row. A new
-    // card's is taken and another is opened after it, so that a body is typed a line after a
-    // line (design 47 A) — and a line left empty is the author having finished.
+    // line is taken and another is opened after it, so that a body is typed a line after a line
+    // (design 47 A) — and a line left empty is the author having finished. A new card of a kind
+    // chosen from the list is a form filled in, not a line typed, so it is taken and the
+    // keyboard goes to its row, as an edited card's does: chaining an empty line after a form
+    // left one open on every finished body (design 48 C10).
     private void commit() {
         if (editing == null) {
             return;
@@ -446,8 +449,9 @@ public class BodyController extends Controller {
         }
         final String list = editingList;
         final int index = editingIndex;
+        final boolean line = editing.isAuto();
         final Shift shift = settle();
-        if (shift == null) {
+        if (shift == null || !line) {
             return;
         }
         // After what was put in. Dropped, the keyboard goes back to the last row that was: the

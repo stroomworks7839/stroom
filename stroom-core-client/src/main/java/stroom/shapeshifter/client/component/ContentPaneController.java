@@ -49,7 +49,7 @@ import java.util.TreeSet;
 /// do without taking the other channel's meaning with it.
 ///
 /// Without data the pane is an empty state pointing at the one door there is (design 18 §5.7,
-/// design 44 §5): the crumb's sample chooser, a stream or text pasted. The pane itself never
+/// design 44 §5a): the panel's Data row, a stream or text pasted. The pane itself never
 /// edits the sample - it shows the cursor's content and nothing else.
 public class ContentPaneController extends Controller {
 
@@ -101,8 +101,10 @@ public class ContentPaneController extends Controller {
         }
         final TraceModel trace = host.trace();
         if (host.getSampleSource() == null) {
-            view.showEmpty("No data yet — choose a sample on the crumb above: a stream, "
-                                + "or text pasted. Nothing is kept with the document.");
+            // Where the sample is chosen now: the panel's Data row (design 44 §5a), as the crumb
+            // says. A pasted sample is kept with the project (§5s), so this no longer says it is not.
+            view.showEmpty("No data yet — choose sample data in the panel's Data row: a stream, "
+                                + "or text pasted.");
             return;
         }
         if (trace == null) {

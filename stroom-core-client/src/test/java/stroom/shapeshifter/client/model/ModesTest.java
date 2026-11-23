@@ -306,9 +306,19 @@ class ModesTest {
                 template("rec", "kv", List.of(new If(null, List.of(apply("cols"))))),
                 template("col", "cols", List.of())), null);
 
-        assertThat(Modes.dispatchSites(project, "kv")).containsExactly("doc (body pos 2)");
-        assertThat(Modes.dispatchSites(project, "cols")).containsExactly("rec (body pos 1)");
+        assertThat(Modes.dispatchSites(project, "kv")).containsExactly("doc");
+        assertThat(Modes.dispatchSites(project, "cols")).containsExactly("rec");
         assertThat(Modes.dispatchSites(project, "nowhere")).isEmpty();
+    }
+
+    @Test
+    void aPlaceIsNamedOnlyToTellTwoSitesInOneBodyApart() {
+        // Design 48 C10: the position is the engine's words, and said only where it is needed
+        final Project project = new Project("p", 5, null, List.of(
+                template("doc", null, List.of(apply("kv"), new OutputNode.Text("x"), apply("kv"))),
+                template("rec", "kv", List.of(apply("kv")))), null);
+
+        assertThat(Modes.dispatchSites(project, "kv")).containsExactly("doc (body pos 1)", "doc (body pos 3)", "rec");
     }
 
     @Test
@@ -322,8 +332,8 @@ class ModesTest {
         final Modes.DispatchState state = Modes.dispatchState(project, "kv");
 
         assertThat(Modes.dispatchNote(state, false))
-                .isEqualTo("dispatched from a (body pos 1), b (body pos 1), c (body pos 1) and 2 more");
-        assertThat(Modes.dispatchNote(state, true)).endsWith("e (body pos 2)");
+                .isEqualTo("dispatched from a, b, c and 2 more");
+        assertThat(Modes.dispatchNote(state, true)).endsWith("e");
     }
 
     @Test
@@ -336,9 +346,9 @@ class ModesTest {
         final Modes.DispatchState state = Modes.dispatchState(project, "kv");
 
         assertThat(state.sites()).isEqualTo(2);
-        assertThat(state.named()).containsExactly("rec (body pos 1)");
+        assertThat(state.named()).containsExactly("rec");
         assertThat(Modes.dispatchNote(state, false))
-                .isEqualTo("dispatched from rec (body pos 1) — the dispatches differ: set it on each card");
+                .isEqualTo("dispatched from rec — the dispatches differ: set it on each card");
     }
 
     @Test
