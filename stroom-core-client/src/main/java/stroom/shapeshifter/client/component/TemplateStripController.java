@@ -95,6 +95,8 @@ public class TemplateStripController extends Controller {
     private ProjectHost host;
     private Consumer<String> onOpenWorkbench = templateId -> {
     };
+    private Consumer<String> onOpenGuard = templateId -> {
+    };
     private Consumer<String> onSelectTemplate = id -> {
     };
     private Consumer<String> onAddTemplate = mode -> {
@@ -158,6 +160,11 @@ public class TemplateStripController extends Controller {
         view.setOnModeDispatch(this::onModeDispatch);
         view.setOnRole(this::onRole);
         view.setOnOpenWorkbench(this::onOpenWorkbench);
+        view.setOnOpenGuard(() -> {
+            if (templateId != null) {
+                onOpenGuard.accept(templateId);
+            }
+        });
         view.setOnMatch(this::onMatch);
         view.setOnMatchTyped(pattern -> matchTimer.schedule(MATCH_INSPECT_DELAY_MS));
         declarations.attach(view.getDeclarations());
@@ -281,6 +288,14 @@ public class TemplateStripController extends Controller {
         }
     }
 
+    /// Told when a template's guard and limits are asked for, from the strip's `+ guard or limit`
+    /// or its guard line: the match workbench is to be opened on them.
+    ///
+    /// @param onOpenGuard Told with the template's id.
+    public void setOnOpenGuard(final Consumer<String> onOpenGuard) {
+        this.onOpenGuard = onOpenGuard;
+    }
+
     /// Told when the match workbench is to be opened, with the template's id.
     ///
     /// @param onOpenWorkbench The handler.
@@ -306,7 +321,7 @@ public class TemplateStripController extends Controller {
         if (template == null) {
             view.setHeader("Document", null, project == null
                     ? ""
-                    : project.name(), "", "the root frame: every template descends from here");
+                    : project.name(), "", "the document: every template is reached from here");
             view.setNameEditable(false, "", "");
             view.setRole(false, MatchRole.RECORD, false, "", false);
             view.setMatchVisible(false);
@@ -324,11 +339,15 @@ public class TemplateStripController extends Controller {
                 "dispatched from " + dispatchedFrom(project, template) + runNote(template));
         view.setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 GuardClause.describe(template.guard()) + guardVerdict(template) + " · "
-                + Templates.describeLimits(template.matchLimits()),
+                + Templates.describeLimits(template.matchLimits()), !Templates.unguardedAndUnlimited(template),
                 readOnly
                         ? null
                         : MatchLine.of(template.match()));
-        view.setRole(true, MatchRole.of(template.consume()), !readOnly, roleNote(template),
+        // The role matters once the template shares its mode, where what it does with a match
+        // decides what the others are tried on (design 48 C2); before that it is a choice with
+        // nothing to choose between. A template already advance only says so wherever it is.
+        view.setRole(template.consume() || sharesItsMode(project, template), MatchRole.of(template.consume()),
+                !readOnly, roleNote(template),
                 template.consume() && !template.captures().isEmpty());
         view.setMatchVisible(true);
         bodyPresenter.setTemplate(id);
@@ -737,6 +756,23 @@ public class TemplateStripController extends Controller {
                 })
                 .owner(this)
                 .exec();
+    }
+
+    // Whether another template is in this one's mode
+    private static boolean sharesItsMode(final Project project, final Template template) {
+        if (project == null) {
+            return false;
+        }
+        for (final Template other : project.templates()) {
+            // The document shares the root group's null mode but is entered, not dispatched, so
+            // it is never chosen between
+            if (other != template && !other.id().equals(template.id())
+                && !(other.match() instanceof MatchExpression.Source)
+                && Objects.equals(other.mode(), template.mode())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// The static complement to breadcrumb ancestry: the sites whose apply-templates dispatch

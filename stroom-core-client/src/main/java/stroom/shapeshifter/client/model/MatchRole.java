@@ -25,10 +25,11 @@ package stroom.shapeshifter.client.model;
 /// reason §1 made the match kind one. "Skip" and "eater" were both tried and both mislead:
 /// nothing is discarded and nothing stops.
 public enum MatchRole {
-    RECORD("a record", "each match counts, binds its captures and opens a frame to step"),
-    ADVANCE("advance only", "the cursor moves past each match and nothing is counted, captured "
-                            + "or framed — the body still runs over the content, which is where "
-                            + "an emit-error goes");
+    // Said in matches, not frames: a new author meets these before anything says what a frame
+    // is (design 48 C7)
+    RECORD("a record", "each match is counted, binds its captures, and can be stepped to"),
+    ADVANCE("advance only", "each match is passed over: not counted, captured or stepped to — "
+                            + "but its body still runs, which is where an emit-error goes");
 
     private final String label;
     private final String note;

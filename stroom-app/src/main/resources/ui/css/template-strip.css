@@ -233,3 +233,9 @@
 .template-strip__content {
     padding: 0;
 }
+
+/* What a template does not have yet, as one quiet line of ways to add it (design 48 C1): its
+   guard or limit, a declaration, a capture. Each section is shown once it holds something. */
+.template-strip__adds {
+    gap: 16px;
+}

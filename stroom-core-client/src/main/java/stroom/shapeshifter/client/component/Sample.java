@@ -100,7 +100,7 @@ public class Sample extends Component {
         // marks it again; Escape goes no further, as it would close the workbench.
         read.getElement().setAttribute("role", "region");
         read.getElement().setAttribute("aria-label", "Sample, its matches marked: Enter to edit it");
-        read.setTitle("The cursor's frame to start with. Click a mark to keep its group shown; double-click, "
+        read.setTitle("Seeded from the selected match. Click a mark to keep its group shown; double-click, "
                       + "or Enter, to edit the sample: this never runs the document.");
         // Counted here rather than left to the browser's dblclick: the first click can select a
         // tree's node, which draws other marks, and the browser does not count a second click on

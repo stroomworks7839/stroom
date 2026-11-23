@@ -634,7 +634,11 @@ public final class ShapeshifterTemplateStories {
                 .story("TheTemplatesWithNoModeAreCalledDefault", context -> ShapeshifterEditorStories.render(context,
                         false))
                 .withPlay(play -> {
-                    play.waitFor(() -> play.expect(play.getByText("mode: default")).toBeVisible());
+                    // The default mode holds only the document here, which is dispatched from
+                    // nowhere and so answers to no mode: no heading, and its + template still
+                    // adds to the default mode (design 48 C4)
+                    play.waitFor(() -> play.expect(play.getByText(KV_MODE)).toBeVisible());
+                    play.expect(play.queryByText("mode: default")).toBeNull();
                     play.expect(play.getByTitle("Click to add a template to mode default")).toBeInTheDocument();
                     ShapeshifterEditorStories.selectTemplate(play, "document");
                     play.waitFor(() -> play.expect(play.getByText("mode default", ".template-strip__mode"))
@@ -951,7 +955,9 @@ public final class ShapeshifterTemplateStories {
                     play.expect(fold(play, "Templates"))
                             .toHaveTextContent(TextMatch.regex("^Templates \\d+ templates$"));
                     play.expect(fold(play, "Templates")).toHaveAttribute(EXPANDED, "true");
-                    play.expect(fold(play, "Patterns")).toHaveTextContent("Patterns none");
+                    // No Patterns section while the library has no part: it said only "none",
+                    // about a library a new author has not met (design 48 C9)
+                    play.expect(play.queryByRole("button", TextMatch.regex("^Patterns "))).toBeNull();
                     play.expect(play.getByText("Settings", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible();
                     play.expect(play.getByText("Data", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible();
                     ShapeshifterEditorStories.selectTemplate(play, "pair");
@@ -963,7 +969,6 @@ public final class ShapeshifterTemplateStories {
                     play.expect(fold(play, "Templates")).toHaveClass(HOLDS_SELECTION);
                     play.expect(play.getByText("mode kv", ".template-strip__mode")).toBeVisible();
                     // The other sections are where they were
-                    play.expect(fold(play, "Patterns")).toBeVisible();
                     play.expect(play.getByText("Data", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible();
 
                     play.click(fold(play, "Templates"));
@@ -971,12 +976,6 @@ public final class ShapeshifterTemplateStories {
                             .toBeVisible());
                     play.expect(fold(play, "Templates")).toHaveAttribute(EXPANDED, "true");
                     play.expect(fold(play, "Templates")).not().toHaveClass(HOLDS_SELECTION);
-                    // Patterns folds as Templates does, holding no selection
-                    play.click(fold(play, "Patterns"));
-                    play.waitFor(() -> play.expect(fold(play, "Patterns")).toHaveAttribute(EXPANDED, "false"));
-                    play.expect(fold(play, "Patterns")).not().toHaveClass(HOLDS_SELECTION);
-                    play.click(fold(play, "Patterns"));
-                    play.waitFor(() -> play.expect(fold(play, "Patterns")).toHaveAttribute(EXPANDED, "true"));
                 })
                 // A run refreshes the panel's rows, and what was folded stays folded
                 .story("AFoldedSectionStaysFoldedOverARun", context -> ShapeshifterEditorStories.render(context,

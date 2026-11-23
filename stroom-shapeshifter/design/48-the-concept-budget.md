@@ -253,18 +253,18 @@ is not where the load comes from; it comes from what rung 1 shows and rung 5 doe
 
 | | Ruling |
 |---|---|
-| C1 | **Yes.** The strip shows what a template has: empty Guard, Declarations and Captures are one quiet `+ guard · + declaration · + capture` line, and the guard line opens the workbench with Guard and limits unfolded. |
-| C2 | **Yes.** The role picker and its help appear once a template's mode has a second template. |
-| C3 | **Yes.** Settings shows Project name, Encoding and Ignore errors; the rest fold under Advanced. |
-| C4 | **Yes.** No `mode: default` heading while there is one mode, and the document row never sits under a mode heading. |
+| C1 | **Yes. Built 2026-11-23.** Empty sections are one line, `+ guard or limit · + declaration · + capture`: the guard's link is named for the limit too, which is what rung 5 sets, and it and the guard's own line open the workbench with them unfolded. Read only, an empty section is not shown. The clause list's `+ clause` gained the space it lacked, found once the shorter template brought it on screen. |
+| C2 | **Yes. Built 2026-11-23.** The role picker shows once another template shares the mode, or the template is already advance only. |
+| C3 | **Yes, amended by the gate. Built 2026-11-23.** Settings shows Project name, Encoding, Ignore errors and Buffer size; Version, Dispatch, Max sequence entries and Strict values fold under Advanced, which opens by itself when the dispatch or strict values are set. Buffer size was to fold too, and the gate refused it: rung 6 sets it, and opening Advanced cost that rung a click. |
+| C4 | **Yes. Built 2026-11-23.** The document row sits under no heading; `mode: default` heads templates in the default mode only beside a named mode, or where the heading has a note to say (§7, "Found in review"). |
 | C5 | **Yes, narrowed.** Run results (row counts, `not tried`, heat bars, card notes, the stepper) appear after the first run; a row's limit note stays. |
-| C6 | **Yes.** Variables appears when the cursor has something in scope. |
-| C7 | **Yes.** A new author's texts say *match*; *frame* stays in the breadcrumb. |
+| C6 | **Yes. Built 2026-11-23.** The Variables pane folds away while no name is in scope at the cursor and opens when one is, unless the user has folded or opened it, which is kept. |
+| C7 | **Yes. Built 2026-11-23.** The role help, the settings header, the Output and Variables empty texts, the sample's tip and the variables' section links say *match*. *Frame* stays in the crumb, and in what only a stepping author reads (the guard's verdict counts). |
 | C8 | **No.** Both template Adds stay. |
-| C9 | **Yes.** Patterns appears once the library has a part; the add-part button stays. |
+| C9 | **Yes. Built 2026-11-23.** No Patterns section until the library has a part. |
 | C10 | **Yes, first. Built 2026-11-23.** The Input's empty text points at the panel's Data row, and no longer says a pasted sample is not kept. A card of a kind chosen from the list is taken without opening an empty line after it, which a typed line still does (design 47 A). A dispatch site is named by its template alone, its body position only where one template dispatches into the mode twice. |
-| Nested adds | **Yes.** Each nested `+ instruction` names its list: `+ in variable`, `+ in then`. |
-| Order | **Yes.** Once a mode has two templates, its heading says it is tried top to bottom and the first that matches wins. |
+| Nested adds | **Yes. Built 2026-11-23.** A nested list's link says which list: `+ in then`, `+ in when`, `+ in otherwise`, `+ in case x`, `+ in default`, and for a holder of one list its kind, `+ in variable`, `+ in for-each`. The body's own stays `+ instruction`. |
+| Order | **Yes, for strict modes. Built 2026-11-23.** A strict mode's heading says "tried top to bottom: the first to match takes it" once it has two templates. Only strict dispatch takes the first to match; a lexer or lax mode's heading says how it is dispatched instead, as it did. |
 
 **How they are built**: C10 first, then each cut as its own change. Every rung's walkthrough is
 re-run after each, and a cut lands only if no rung's action count rises (§5a). Screenshots after
@@ -277,13 +277,13 @@ Actions are counted mechanically off the step log of each rung's last stage (`re
 and expectations are not actions. The method is design 46 §10's, so the numbers are comparable
 with each other but not with its hand counts.
 
-| Walkthrough | Baseline, 2026-11-23 | After C10 |
+| Walkthrough | Baseline, 2026-11-23 | After the cuts |
 |---|---|---|
 | `ShapeshifterAuthoring` (rung 1) | 44 | 44 |
 | `ShapeshifterLexer` (rung 2) | 39 | 39 |
 | `ShapeshifterClassify` (rung 3) | 35 | 35 |
 | `ShapeshifterLibrary` (rung 4) | 34 | 34 |
-| `ShapeshifterSplit` (rung 5) | 102 | 98: four Escapes that closed the line C10 no longer opens |
+| `ShapeshifterSplit` (rung 5) | 102 | 98 after C10, four Escapes that closed the line it no longer opens; 97 after C1, the limit opened from its link |
 | `ShapeshifterLenRecords` (rung 6) | 39 | 39 |
 
 ### Found while building: C5's trigger
@@ -293,6 +293,37 @@ once there is a sample, so from rung 1's stage 5 there is always a run, and "aft
 hides nothing. C5 needs another trigger before it is built: for instance, a template's results
 appear once *it* has been tried, so that `not tried` is shown only for a template the run could
 have reached and did not.
+
+### Asked for while building — 2026-11-23
+
+- **A card's OK and Cancel are a dialog's.** They were two links at the end of the card's row of
+  fields; they are Stroom's own buttons now, OK in the primary colour with its tick and Cancel in
+  the secondary with its cross, on a line of their own under the fields at the right, as every
+  dialog has them (`DialogFrame`). Enter and Escape are unchanged.
+- **The keyboard stays on an add link across a redraw.** Escape from a new card puts it on the
+  list's `+ instruction`; the run the previous edit started could land a moment later, redraw the
+  cards and take it away. A redraw already kept it in an open card or on a row, and now keeps it
+  on a link. Found because the card toolbar's story failed only when the box was busy enough for
+  the run to land late.
+
+### Found in review — 2026-11-23
+
+A review of the cuts found that four of them hid more, or less, than was ruled:
+
+- **C2 never applied to the default mode.** The document's mode is also null, so it counted as
+  another template in the default mode. It is entered and not dispatched, and is now not counted.
+- **C4 took a note with its heading.** The heading draws the mode's note, so a project of one mode
+  said neither how it was dispatched nor the order. The default mode keeps its heading where there
+  is a note.
+- **The order was claimed of dispatch sites that disagree.** The absence of a dispatch note was
+  read as strict, and it also means sites that differ. The order is now said only of strict.
+- **C3's Advanced would not stay folded.** A set dispatch or strict values opened it on every
+  refresh, which is every edit. It is opened only until the author has folded or opened it.
+
+And two smaller: `+ guard or limit` opened the guard pane for every template shown after it, not
+only for the one it was pressed on (C1); and the add link, hidden as its section appeared, took the
+keyboard with it. The keyboard now goes to the section's own add link, and back when the last row
+is removed. `ShapeshifterConceptStories` holds a story for each, seen to fail without its fix.
 
 ## 8. What this cannot tell us
 

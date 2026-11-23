@@ -187,6 +187,13 @@ public class ShapeshifterDesignController
         strip.setOnAddTemplate(mode -> templatePanel.addTemplate(mode));
         strip.setOnRenameMode(this::renameMode);
         strip.setOnOpenWorkbench(this::openWorkbench);
+        // The guard and limits are in the workbench: asked for, it opens on them (design 48 C1)
+        strip.setOnOpenGuard(id -> {
+            openWorkbench(id);
+            if (workbenchOpen) {
+                workbench.openGuardAndLimits();
+            }
+        });
         workbench.setHost(this);
         samplePage.setHost(this);
         workbench.setOnClose(this::closeWorkbench);
@@ -195,6 +202,8 @@ public class ShapeshifterDesignController
         messages.setOnCount(view::setMessageCount);
         input.setHost(this);
         variables.setHost(this);
+        // Folded away while no name is in scope (design 48 C6)
+        variables.setOnInScope(view::showVariables);
         output.setHost(this);
         view.setWorkbench(workbench);
         view.setSamplePage(samplePage);

@@ -65,6 +65,8 @@ public class DefinitionList extends Composite {
     };
     private IntConsumer onRemove = index -> {
     };
+    private Runnable onShown = () -> {
+    };
 
     public DefinitionList() {
         initWidget(BINDER.createAndBindUi(this));
@@ -106,6 +108,30 @@ public class DefinitionList extends Composite {
         this.removable = removable;
     }
 
+    /// @return Whether it lists nothing.
+    public boolean isEmpty() {
+        return count == 0;
+    }
+
+    /// @return Whether rows can be added, edited and removed.
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    /// Adds a row, as the add link does: for a line elsewhere that adds to this section while it
+    /// is not shown, because it is empty (design 48 C1).
+    public void add() {
+        if (enabled) {
+            onAdd.run();
+        }
+    }
+
+    /// @param onShown Told when what it lists, or whether it can be added to, changes: what
+    ///                decides whether an empty section is shown at all.
+    public void setOnShown(final Runnable onShown) {
+        this.onShown = onShown;
+    }
+
     /// Puts the keyboard on the add link.
     public void focusAdd() {
         add.getElement().focus();
@@ -132,6 +158,7 @@ public class DefinitionList extends Composite {
         add.setVisible(enabled);
         none.setVisible(!enabled && count == 0);
         rows.setStyleName("definition-list__rows--locked", !enabled);
+        onShown.run();
     }
 
     private FlowPanel row(final int index, final Row row) {

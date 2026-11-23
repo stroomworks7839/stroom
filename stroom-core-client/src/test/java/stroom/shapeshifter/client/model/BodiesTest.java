@@ -577,4 +577,25 @@ class BodiesTest {
         both.retainAll(Instructions.TRANSFORM_KINDS);
         assertThat(both).as("kinds offered by both lists").isEmpty();
     }
+
+    @Test
+    void aNestedListIsNamedOnTheLinkThatAddsToIt() {
+        // Design 48 §6: three nested `+ instruction` links were told apart only by indentation
+        final Choose choose = new Choose(List.of(new WhenBranch(FIRST, List.of(C))), List.of(A));
+        assertThat(Bodies.listName(new If(FIRST, List.of(B)), 0)).isEqualTo("then");
+        assertThat(Bodies.listName(choose, 0)).isEqualTo("when");
+        assertThat(Bodies.listName(choose, 1)).isEqualTo("otherwise");
+        // A when is named as a list, not by its condition, which heads the branch
+        assertThat(Bodies.listName(choose, 0)).isNotEqualTo(Bodies.branchLabel(choose, 0));
+        final Switch s = new Switch(ProjectJson.readRefOrName("k"), List.of(new SwitchCase("1", List.of(A))),
+                List.of(B));
+        assertThat(Bodies.listName(s, 0)).isEqualTo("case 1");
+        assertThat(Bodies.listName(s, 1)).isEqualTo("default");
+        // Past the last case is the default, whatever the index
+        assertThat(Bodies.listName(s, 5)).isEqualTo("default");
+        // A holder of one list is named by its kind
+        assertThat(Bodies.listName(new ForEach(ProjectJson.readRefOrName("xs"), "x", null, List.of(), List.of(B)), 0))
+                .isEqualTo("for-each");
+        assertThat(Bodies.listName(new Element("e", null, false, List.of(A)), 0)).isEqualTo("element");
+    }
 }

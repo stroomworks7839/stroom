@@ -129,8 +129,8 @@ public class Body extends Component {
         }
 
         @Override
-        public void onAddShown(final String path, final Runnable focus) {
-            links.put(path, focus);
+        public void onAddShown(final String path, final Element link) {
+            links.put(path, link);
         }
 
         @Override
@@ -187,7 +187,7 @@ public class Body extends Component {
     // Every list's add link in the drawing on screen, by the path the list's next card will
     // have, as what puts the keyboard on it. A link is not a row: it is not walked to with the
     // arrows and is never the selected one.
-    private final Map<String, Runnable> links = new HashMap<>();
+    private final Map<String, Element> links = new HashMap<>();
     // The selected row: the one the keyboard or the pointer was last on, or that is open. It is
     // what the toolbar acts on, and it is the rows' one tab stop between them (the first row,
     // until one has been selected). Kept as a path, so whoever changes the body says where the
@@ -351,10 +351,19 @@ public class Body extends Component {
                 focusedRow = row.getKey();
             }
         }
+        // ...and so is an add link the keyboard is on: Escape from a new card puts it there, and
+        // the run the edit before it started could land a moment later and take it away
+        final Element focusedElement = ContentFocus.activeElement();
+        String focusedLink = null;
+        for (final Map.Entry<String, Element> link : links.entrySet()) {
+            if (link.getValue() == focusedElement) {
+                focusedLink = link.getKey();
+            }
+        }
         shown.clear();
         links.clear();
         cards.clear();
-        list = new CardList(new int[0], body, notes, cardActions, enabled, false);
+        list = new CardList(new int[0], body, notes, cardActions, enabled, false, null);
         cards.add(list);
         tabStops();
         enableActions();
@@ -362,6 +371,8 @@ public class Body extends Component {
             active.focus();
         } else if (keepRow && focusedRow != null && shown.containsKey(focusedRow)) {
             shown.get(focusedRow).focus();
+        } else if (keepRow && focusedLink != null && links.containsKey(focusedLink)) {
+            links.get(focusedLink).focus();
         }
         focusPending();
     }
@@ -386,7 +397,7 @@ public class Body extends Component {
             shown.get(focusCardNext).focus();
             focusCardNext = null;
         } else if (focusCardNext != null && links.containsKey(focusCardNext)) {
-            links.get(focusCardNext).run();
+            links.get(focusCardNext).focus();
             focusCardNext = null;
         }
     }
@@ -631,9 +642,9 @@ public class Body extends Component {
         /// @param index    How many cards it has, which is where the new one goes.
         void onNew(String listPath, int index);
 
-        /// @param path  The path the next card of a list will have.
-        /// @param focus What puts the keyboard on that list's add link.
-        void onAddShown(String path, Runnable focus);
+        /// @param path The path the next card of a list will have.
+        /// @param link That list's add link, which the keyboard can be put on.
+        void onAddShown(String path, Element link);
 
         /// @param path A card's path.
         /// @return The editor open in its place, or null.

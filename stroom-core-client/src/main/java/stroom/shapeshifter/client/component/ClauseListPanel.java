@@ -71,7 +71,7 @@ public class ClauseListPanel extends Component {
     public ClauseListPanel() {
         final FlowPanel panel = new FlowPanel();
         none.setStyleName("placeholder");
-        add.addStyleName("add-button");
+        add.addStyleName("add-button clause-list__add");
         add.setTitle("Click to add a clause");
         add.setOnClick(() -> {
             if (enabled) {

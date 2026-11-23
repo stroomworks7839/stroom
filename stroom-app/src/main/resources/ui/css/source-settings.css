@@ -21,3 +21,9 @@
     padding-left: 12px;
     padding-right: 12px;
 }
+
+/* The tuning and compatibility settings, under their Advanced heading (design 48 C3): set in
+   from the heading's arrow, as a section's contents are. */
+.source-settings__advanced {
+    padding-left: calc(.7rem + 6px);
+}

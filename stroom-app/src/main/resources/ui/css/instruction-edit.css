@@ -38,23 +38,13 @@
     flex: 1 1 100%;
 }
 
-/* The two ways out, last in the row and on its bottom edge: level with the controls, not with
-   the labels over them. */
+/* The two ways out, under the fields and at their right, as a dialog's OK and Cancel are
+   (DialogFrame): Stroom's own buttons, which carry their own size and look. */
 .instruction-edit__actions {
     display: flex;
-    flex: none;
-    order: 1;
-    align-self: flex-end;
-    gap: 14px;
-    margin-left: auto;
-    padding-bottom: 5px;
-}
-
-/* Words, not glyphs, and a 24px target each (WCAG 2.5.8): the tick and cross this editor's
-   first design carried were too small to be either (design 18 Q12). */
-.instruction-edit__action {
-    min-width: 24px;
-    min-height: 24px;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
 }
 
 /* The offer to declare a variable's name (design 47 I), beside the Name it is for and level

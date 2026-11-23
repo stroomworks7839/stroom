@@ -78,13 +78,16 @@
                             helpText="The instruction as the document holds it.">
                 <form:TextArea ui:field="wire" addStyleNames="w-100 edit-form__entries" visibleLines="8"/>
             </form:FormGroup>
-            <!-- Enter in a field takes the draft and Escape drops it; these are the same two
-                 for the pointer, and for the fields where Enter is a line break. Last in the
-                 row, so a kind with one or two settings is one line with its way out on it. -->
-            <g:FlowPanel styleName="instruction-edit__actions">
-                <btn:LinkButton ui:field="ok" addStyleNames="instruction-edit__action" text="OK" title="Take this instruction as it is written here (Enter)"/>
-                <btn:LinkButton ui:field="cancel" addStyleNames="instruction-edit__action" text="Cancel" title="Leave the instruction as it was (Escape)"/>
-            </g:FlowPanel>
+        </g:FlowPanel>
+        <!-- Enter in a field takes the draft and Escape drops it; these are the same two for the
+             pointer, and for the fields where Enter is a line break. Under the fields and drawn
+             as every dialog's OK and Cancel are (DialogFrame), so the card reads as the form it
+             is, with the way out where a form's is. -->
+        <g:FlowPanel styleName="instruction-edit__actions">
+            <btn:Button ui:field="ok" addStyleNames="allow-focus button--contained-primary" text="OK" icon="OK"
+                        title="Take this instruction as it is written here (Enter)"/>
+            <btn:Button ui:field="cancel" addStyleNames="allow-focus button--contained-secondary" text="Cancel"
+                        icon="CANCEL" title="Leave the instruction as it was (Escape)"/>
         </g:FlowPanel>
     </g:FlowPanel>
 </ui:UiBinder>

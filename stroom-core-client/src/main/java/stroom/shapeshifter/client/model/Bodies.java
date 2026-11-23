@@ -341,6 +341,25 @@ public final class Bodies {
         return null;
     }
 
+    /// What a holder's list is called on the link that adds to it, so that nested lists' links
+    /// say which list they add to rather than only how far in they stand (design 48 §6): an
+    /// if's `then`, a choose's `when` or `otherwise`, a switch's `case` or `default`, and for a
+    /// holder of one list, its kind — `variable`, `for-each`.
+    ///
+    /// @param holder The holder.
+    /// @param branch Which of its lists.
+    /// @return The list's name.
+    public static String listName(final Holder holder, final int branch) {
+        // A when's condition is the branch's heading, not its list's name
+        if (holder instanceof Choose c && branch < c.when().size()) {
+            return "when";
+        }
+        final String label = branchLabel(holder, branch);
+        return label != null
+                ? label
+                : Instructions.kind(holder);
+    }
+
     /// Whether a branch has a head of its own to edit or remove: a when or a case, not otherwise or default.
     public static boolean branchIsOwn(final Holder holder, final int branch) {
         return holder instanceof Choose c && branch < c.when().size()

@@ -44,7 +44,7 @@ import java.util.List;
 ///
 /// **The mode is called `root`**, which is the fixture's name for it. The editor once used the
 /// same word for having no mode at all; it says `default` for that now (design 47 §7.3), and
-/// the panel heads the two `mode: default` and `mode: root`.
+/// the panel heads the one `mode: root`, the document under no heading (design 48 C4).
 ///
 /// **Every literal is a `text` card**, typed as a line as it looks (design 47 A), and a
 /// reference that is not a capture is written in the line as `${…}` (design 47 H). The fixture
@@ -279,13 +279,13 @@ public final class ShapeshifterSplitStories {
     }
 
     /// §6.4 step 7. The limit that makes it the header and not every record: one match. Set in
-    /// the workbench, which is where the limits are, folded away under their title bar while
-    /// the template has none (ruled 2026-11-20).
+    /// the workbench, which is where the limits are; the template's `+ guard or limit` opens it
+    /// on them (design 48 C1), where its own button opens it with them folded away while the
+    /// template has none (ruled 2026-11-20).
     private static void onlyTheFirst(final Play play, final Play screen) {
-        play.click(ShapeshifterEditorStories.workbenchButton(play));
+        play.click(play.getByRole("button", StroomDom.button("+ guard or limit")));
         play.waitFor(() -> play.expect(guardAndLimits(play, "no guard · no limits"))
-                .toHaveAttribute("aria-expanded", "false"));
-        play.click(guardAndLimits(play, "no guard · no limits"));
+                .toHaveAttribute("aria-expanded", "true"));
         play.waitFor(() -> play.expect(play.getByLabelText("Match at most")).toBeVisible());
         play.type(play.getByLabelText("Match at most"), "1");
         play.keyboard("{Tab}");
@@ -414,11 +414,11 @@ public final class ShapeshifterSplitStories {
         Walkthrough.expectTried(play, "header_record", "1");
         Walkthrough.expectTried(play, "data_record", "1");
         // The two delimiter templates in mode root read the same but for the first one's limit,
-        // which its row says (design 47 §7.3, finding 8). And the templates with no mode are
-        // called default, so the mode called root is only that
+        // which its row says (design 47 §7.3, finding 8). The mode called root is only that: the
+        // document, the one template with no mode here, sits under no heading (design 48 C4)
         Walkthrough.expectLimit(play, "header_record", "· first only");
         Walkthrough.expectLimit(play, "data_record", null);
-        play.expect(play.getByText("mode: default")).toBeVisible();
+        play.expect(play.queryByText("mode: default")).toBeNull();
         play.expect(play.getByText("mode: root")).toBeVisible();
         play.waitFor(() -> play.expect("the project the editor built",
                         () -> JsonValues.jsonContains(Walkthrough.projectBuilt(requests),

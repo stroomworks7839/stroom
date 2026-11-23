@@ -126,6 +126,13 @@ public class PatternWorkbench extends Component {
                 : guardFolded);
     }
 
+    /// Opens the guard and limits, whatever they hold: asked for from the template, they are what
+    /// the workbench is open for. Not recorded as the user's fold, which would hold for every
+    /// template shown after it; the next template shown is folded by what it holds.
+    public void openGuardAndLimits() {
+        matchPanes.fold(guardPane, false);
+    }
+
     interface Binder extends UiBinder<Widget, PatternWorkbench> {
 
     }

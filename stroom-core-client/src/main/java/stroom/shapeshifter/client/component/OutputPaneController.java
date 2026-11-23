@@ -148,7 +148,7 @@ public class OutputPaneController extends Controller {
                 ? null
                 : host.trace();
         if (trace == null) {
-            view.showEmpty("What the selected frame wrote, and what its matches wrote, after a run.");
+            view.showEmpty("What the selected match wrote, and what the matches inside it wrote, after a run.");
             return;
         }
         final String output = trace.trace().getOutput() == null

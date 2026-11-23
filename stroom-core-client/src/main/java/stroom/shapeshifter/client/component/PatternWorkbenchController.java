@@ -200,6 +200,12 @@ public class PatternWorkbenchController extends Controller {
         }
     }
 
+    /// Opens the guard and limits, as asked for from the template's own line for them: what the
+    /// workbench was opened for.
+    public void openGuardAndLimits() {
+        view.openGuardAndLimits();
+    }
+
     /// Opens the part's name to be changed, where it reads.
     public void editName() {
         if (part != null && !readOnly) {

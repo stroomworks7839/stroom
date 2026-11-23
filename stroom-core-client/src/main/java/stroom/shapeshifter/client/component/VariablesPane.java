@@ -75,7 +75,7 @@ public class VariablesPane extends Component {
             if (section.isLink()) {
                 final LinkButton heading = new LinkButton(section.getHeading());
                 heading.addStyleName("variables-pane__heading variables-pane__heading--link");
-                heading.setTitle("Go to the frame that bound these");
+                heading.setTitle("Go to the match that bound these");
                 heading.addClickHandler(event -> onFrame.accept(section.getFrameId()));
                 panel.add(heading);
             } else {

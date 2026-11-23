@@ -20,6 +20,7 @@ import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.config.Template;
+import stroom.widget.button.client.Button;
 import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.FormGroup;
@@ -74,9 +75,9 @@ public class InstructionEdit extends Component {
     @UiField
     FlowPanel subscripts;
     @UiField
-    LinkButton ok;
+    Button ok;
     @UiField
-    LinkButton cancel;
+    Button cancel;
     @UiField
     SelectionBox<String> kind;
     @UiField

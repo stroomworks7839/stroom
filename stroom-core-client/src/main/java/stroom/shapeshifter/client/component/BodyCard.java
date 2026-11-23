@@ -363,7 +363,8 @@ public class BodyCard extends Composite {
                 panel.add(headLine);
             }
             final int[] listPath = Bodies.branch(Bodies.parent(path), path[path.length - 1], branch);
-            panel.add(new CardList(listPath, cards, List.of(), handlers, enabled, true));
+            panel.add(new CardList(listPath, cards, List.of(), handlers, enabled, true,
+                    Bodies.listName(holder, branch)));
             initWidget(panel);
         }
     }

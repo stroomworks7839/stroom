@@ -95,11 +95,22 @@
                 <g:FlowPanel ui:field="roleLine" styleName="template-strip__line">
                     <t:Label styleName="key-label" text="Match is"/>
                     <l:SelectionBox ui:field="role" ariaLabel="What the match is for" addStyleNames="template-strip__role"
-                                    title="What this match is for. Both roles advance the cursor and run the body; only a record counts, captures and opens a frame to step."/>
+                                    title="What this match is for. Both roles advance the cursor and run the body; only a record is counted, captures and can be stepped to."/>
                     <t:Label ui:field="roleNote" styleName="edit-form__description template-strip__role-note"/>
                 </g:FlowPanel>
+                <!-- What the template does not have yet, as one quiet line of ways to add it
+                     (design 48 C1): a section is shown once it holds something, so a new
+                     template shows what it has rather than everything it could have. -->
+                <g:FlowPanel ui:field="addLine" styleName="template-strip__line template-strip__adds">
+                    <btn:LinkButton ui:field="addGuard" addStyleNames="add-button" text="+ guard or limit"
+                                    title="A guard, or a limit on how often it matches: set in the workbench"/>
+                    <btn:LinkButton ui:field="addDeclaration" addStyleNames="add-button" text="+ declaration"
+                                    title="A name this template declares, for its body or what it dispatches to"/>
+                    <btn:LinkButton ui:field="addCapture" addStyleNames="add-button" text="+ capture"
+                                    title="A part of the match bound to a name"/>
+                </g:FlowPanel>
                 <!-- Guard and limits off the match row, so the match can have the width
-                     (design 44 §5h). -->
+                     (design 44 §5h). Shown once there are some. -->
                 <g:FlowPanel ui:field="guardLine" styleName="template-strip__line">
                     <t:Label styleName="key-label" text="Guard"/>
                     <t:Label ui:field="guardLimits" styleName="placeholder template-strip--clickable"

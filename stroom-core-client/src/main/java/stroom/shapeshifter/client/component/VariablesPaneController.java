@@ -29,6 +29,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /// The variables pane (design 18 §5.2): everything in scope at the cursor, innermost first —
 /// this match's own captures, then what each ancestor bound, each row naming the frame that
@@ -38,6 +39,8 @@ public class VariablesPaneController extends Controller {
     private VariablesPane view;
 
     private ProjectHost host;
+    private Consumer<Boolean> onInScope = anything -> {
+    };
 
     @Inject
     public VariablesPaneController(final EventBus eventBus) {
@@ -80,7 +83,8 @@ public class VariablesPaneController extends Controller {
                 : host.trace();
         if (trace == null) {
             view.setSections(List.of(),
-                    "Every name in scope at the selected frame, innermost first, after a run.");
+                    "Every name in scope at the selected match, innermost first, after a run.");
+            onInScope.accept(false);
             return;
         }
         final List<Section> sections = new ArrayList<>();
@@ -122,7 +126,14 @@ public class VariablesPaneController extends Controller {
                         : List.of(),
                 binds
                         ? null
-                        : "No name is in scope at the selected frame.");
+                        : "No name is in scope at the selected match.");
+        onInScope.accept(binds);
+    }
+
+    /// @param onInScope Told after every refresh whether any name is in scope at the cursor, so
+    ///                  that the pane can be folded away while there is none (design 48 C6).
+    public void setOnInScope(final Consumer<Boolean> onInScope) {
+        this.onInScope = onInScope;
     }
 
     /// Whether any frame on the path bound a name. Phrased over the sections rather than the

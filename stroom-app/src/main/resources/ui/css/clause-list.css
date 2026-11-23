@@ -17,3 +17,11 @@
     color: var(--text-color--muted);
     font-size: var(--font-size-12);
 }
+
+/* Clear of the last row's boxes, so the link is a target of its own (WCAG 2.5.8): it sat within
+   24px of the row's remove and its last box, which went unseen while the link was scrolled out
+   of the template and was found when the template got shorter (design 48 C1). */
+.clause-list__add {
+    display: inline-block;
+    margin-top: 8px;
+}

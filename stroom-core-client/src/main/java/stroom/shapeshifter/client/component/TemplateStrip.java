@@ -64,6 +64,12 @@ public class TemplateStrip extends Component {
     };
     private Runnable onOpenWorkbench = () -> {
     };
+    private Runnable onOpenGuard = () -> {
+    };
+    // What decides which of the guard, the declarations and the captures are shown
+    private boolean matchShown = true;
+    private boolean detailsShown = true;
+    private boolean guardSet;
     private BiConsumer<MatchLine, Boolean> onMatch = (line, entered) -> {
     };
     private Consumer<String> onMatchTyped = pattern -> {
@@ -135,6 +141,14 @@ public class TemplateStrip extends Component {
     @UiField
     Label guardLimits;
     @UiField
+    FlowPanel addLine;
+    @UiField
+    LinkButton addGuard;
+    @UiField
+    LinkButton addDeclaration;
+    @UiField
+    LinkButton addCapture;
+    @UiField
     SimplePanel content;
     @UiField
     DefinitionList declarations;
@@ -193,6 +207,11 @@ public class TemplateStrip extends Component {
         // is not leaving it.
         listenForLeaving(matchEditor.getElement());
         guardLimits.addClickHandler(event -> onGuardLimits(event));
+        addGuard.setOnClick(() -> onOpenGuard.run());
+        addDeclaration.setOnClick(() -> declarations.add());
+        addCapture.setOnClick(() -> captures.add());
+        declarations.setOnShown(this::layoutSections);
+        captures.setOnShown(this::layoutSections);
         role.setDisplayValueFunction(MatchRole::label);
         role.addItems(MatchRole.values());
     }
@@ -373,7 +392,56 @@ public class TemplateStrip extends Component {
     }
 
     private void onGuardLimits(final ClickEvent e) {
-        openWorkbench();
+        onOpenGuard.run();
+    }
+
+    // Which of the guard, the declarations and the captures are shown, and which are a link on
+    // the add line instead: a section is shown once it holds something (design 48 C1). Read
+    // only, an empty one is not shown at all, as there is no way to add to it.
+    private void layoutSections() {
+        final boolean declarationsWere = declarations.isVisible();
+        final boolean capturesWere = captures.isVisible();
+        final boolean editable = declarations.isEnabled();
+        final boolean guardShown = matchShown && guardSet;
+        final boolean declarationsShown = detailsShown && !declarations.isEmpty();
+        final boolean capturesShown = detailsShown && !captures.isEmpty();
+        guardLine.setVisible(guardShown);
+        declarations.setVisible(declarationsShown);
+        captures.setVisible(capturesShown);
+        addGuard.setVisible(editable && matchShown && !guardSet);
+        addDeclaration.setVisible(editable && detailsShown && !declarationsShown);
+        addCapture.setVisible(editable && detailsShown && !capturesShown);
+        addLine.setVisible(addGuard.isVisible() || addDeclaration.isVisible() || addCapture.isVisible());
+        keepFocus(declarations, addDeclaration, declarationsWere, declarationsShown);
+        keepFocus(captures, addCapture, capturesWere, capturesShown);
+    }
+
+    // A section and its add link stand in for each other, so the keyboard goes from whichever
+    // has just been hidden to the other: from `+ declaration` to the list's own add once the
+    // first is made, and back when the last is removed. Deferred, because the dialog that made
+    // the change hands the focus back to what opened it as it closes, after this runs, and that
+    // is now hidden.
+    private void keepFocus(final DefinitionList section,
+                           final LinkButton add,
+                           final boolean was,
+                           final boolean shown) {
+        if (was == shown || !isAttached()) {
+            return;
+        }
+        final Element hidden = shown
+                ? add.getElement()
+                : section.getElement();
+        Scheduler.get().scheduleDeferred(() -> {
+            final Element active = ContentFocus.activeElement();
+            if (active == null || contains(hidden, active)
+                || active == getElement().getOwnerDocument().getBody()) {
+                if (shown) {
+                    section.focusAdd();
+                } else if (add.isVisible()) {
+                    add.getElement().focus();
+                }
+            }
+        });
     }
 
     private void editIdentity() {
@@ -417,10 +485,12 @@ public class TemplateStrip extends Component {
     /// @param kind The kind of match.
     /// @param summary The match, described.
     /// @param guardAndLimits The guard and limits, described.
+    /// @param guarded Whether there is a guard or a limit: the guard's line is shown only then.
     /// @param line What the line opens on, when the match is a regex or a delimiter that can be
     ///             changed here, in place; null when it is not, and the workbench is the way in.
     public void setMatch(final String kind, final String summary, final String guardAndLimits,
-                         final MatchLine line) {
+                         final boolean guarded, final MatchLine line) {
+        guardSet = guarded;
         this.line = line;
         matchKind.setText(kind);
         matchSummary.setText(summary);
@@ -433,6 +503,7 @@ public class TemplateStrip extends Component {
             // Read only now, or no longer a regex or a delimiter: there is nothing here to take
             closeMatch();
         }
+        layoutSections();
     }
 
     /// @param editable Whether the name can be changed here.
@@ -529,7 +600,8 @@ public class TemplateStrip extends Component {
 
     public void setMatchVisible(final boolean visible) {
         matchLine.setVisible(visible);
-        guardLine.setVisible(visible);
+        matchShown = visible;
+        layoutSections();
         if (!visible && matchOpen) {
             closeMatch();
         }
@@ -554,8 +626,14 @@ public class TemplateStrip extends Component {
 
     /// @param visible Whether there is a template to list the declarations and captures of.
     public void setDetailsVisible(final boolean visible) {
-        declarations.setVisible(visible);
-        captures.setVisible(visible);
+        detailsShown = visible;
+        layoutSections();
+    }
+
+    /// @param onOpenGuard Told when the guard and limits are asked for: the workbench, open on
+    ///                    them.
+    public void setOnOpenGuard(final Runnable onOpenGuard) {
+        this.onOpenGuard = onOpenGuard;
     }
 
 

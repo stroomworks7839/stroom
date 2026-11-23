@@ -351,6 +351,31 @@ public class TemplatePanelController extends Controller {
         selected = id;
     }
 
+    // Templates in a mode, the document aside
+    private static int templatesIn(final Project project, final String mode) {
+        int count = 0;
+        for (final Template template : project.templates()) {
+            if (Objects.equals(template.mode(), mode) && !isDocument(template)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // A mode's note: how it is dispatched where that is not strict, and for a strict mode with
+    // two templates, the order they are tried in, which is the one fact about it that silently
+    // changes the output — said where the order is seen rather than in a tooltip on the move
+    // buttons (design 48 §6). Only strict dispatch takes the first to match; the others choose
+    // otherwise, and their note says which.
+    //
+    // Read off the dispatch itself, not off the absence of a note: no note also means sites that
+    // disagree, and then nothing is said about order, because it would be false at some of them.
+    private static String withOrder(final Project project, final String mode, final int inMode) {
+        return Modes.dispatchOf(project, mode) == Dispatch.STRICT && inMode >= 2
+                ? "tried top to bottom: the first to match takes it"
+                : dispatchNote(project, mode);
+    }
+
     /// Re-read the rows from the host's project, keeping the selection by id where it survives.
     /// Where it does not, nothing is selected, and that is said: what showed it — a mode's pane,
     /// a part's workbench — would otherwise go on showing what is no longer in the list
@@ -397,8 +422,22 @@ public class TemplatePanelController extends Controller {
             // every committed edit and again after every run.
             final Set<String> dispatched = Modes.dispatchedModes(project);
             for (final String mode : modes) {
-                // The templates with no mode are headed `mode: default`, as a named mode is
-                final String section = "mode: " + Modes.label(mode);
+                final int inMode = templatesIn(project, mode);
+                // A mode nothing dispatches into is a mode that never runs: its templates
+                // match nothing and the preview is empty, and the author has done nothing wrong
+                // — they are halfway through a two-part edit (design 46 §5.4, ruled). The root
+                // group is always dispatched, by the document template itself.
+                final String note = mode != null && !dispatched.contains(mode)
+                        ? "nothing dispatches into this"
+                        : withOrder(project, mode, inMode);
+                // The templates with no mode are headed `mode: default`, as a named mode is, but
+                // only when there are some, and only beside a named mode or where the heading has
+                // something to say: a project of one mode has no modes to tell apart, and the
+                // document is dispatched from nowhere, so it answers to no mode at all (design 48
+                // C4). The note is drawn by the heading, so it keeps one.
+                final String section = mode != null || (inMode > 0 && (modes.size() > 1 || note != null))
+                        ? "mode: " + Modes.label(mode)
+                        : null;
                 // A named mode's heading is the way to the mode itself
                 final String sectionId = mode == null
                         ? null
@@ -416,22 +455,15 @@ public class TemplatePanelController extends Controller {
                     // and bar-less would read as a template that failed to match, which is the
                     // opposite of what this one is (design 44 §5m).
                     rows.add(trace == null
-                            ? new TemplateRowData(document.id(), "document", section, "transparent",
+                            ? new TemplateRowData(document.id(), "document", null, "transparent",
                                     "source", false)
-                            : new TemplateRowData(document.id(), "document", section, "transparent",
+                            : new TemplateRowData(document.id(), "document", null, "transparent",
                                     "1", false, 0, 0, Profile.describe(trace, document.id()), 0));
                     // It is a row like any other and its selection survives a refresh like any
                     // other. Added outside the loop below, so it needs saying here: without it,
                     // declaring a name on the document threw the author back to the settings.
                     survives |= document.id().equals(selected);
                 }
-                // A mode nothing dispatches into is a mode that never runs: its templates
-                // match nothing and the preview is empty, and the author has done nothing wrong
-                // — they are halfway through a two-part edit (design 46 §5.4, ruled). The root
-                // group is always dispatched, by the document template itself.
-                final String note = mode != null && !dispatched.contains(mode)
-                        ? "nothing dispatches into this"
-                        : dispatchNote(project, mode);
                 boolean firstOfMode = true;
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode) && !isDocument(template)) {
@@ -472,13 +504,10 @@ public class TemplatePanelController extends Controller {
             }
         }
         // The library's parts (design 44 §3), a section of their own: each with how many trees
-        // name it.
-        rows.add(TemplateRowData.section(null, "Patterns", project == null
-                ? null
-                : project.patterns().isEmpty()
-                        ? "none"
-                        : howMany(project.patterns().size(), "pattern")));
-        if (project != null) {
+        // name it. Once there is one: until then the section said only "none", about a library
+        // a new author has not met, and the toolbar's add-part button is the way in (design 48 C9).
+        if (project != null && !project.patterns().isEmpty()) {
+            rows.add(TemplateRowData.section(null, "Patterns", howMany(project.patterns().size(), "pattern")));
             for (final String name : project.patterns().keySet()) {
                 final int uses = Patterns.uses(project, name);
                 rows.add(new TemplateRowData(Patterns.rowId(name), name, null, "transparent", uses == 0

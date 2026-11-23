@@ -145,6 +145,7 @@ import stroom.gwt.workbench.client.app.security.UsersScreenStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterAuthoringStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterCardStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterClassifyStories;
+import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterConceptStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterEditorStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLenRecordsStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLexerStories;
@@ -427,6 +428,7 @@ public final class AppStories {
         ShapeshifterAuthoringStories.addTo(registry);
         ShapeshifterLexerStories.addTo(registry);
         ShapeshifterClassifyStories.addTo(registry);
+        ShapeshifterConceptStories.addTo(registry);
         // App/Security/DocumentPermissionsTab
         DocumentPermissionsTabStories.addTo(registry);
         // App/Index/ElasticIndexEditor

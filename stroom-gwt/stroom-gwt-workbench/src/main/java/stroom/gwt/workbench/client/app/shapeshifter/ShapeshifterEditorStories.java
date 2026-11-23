@@ -666,10 +666,16 @@ public final class ShapeshifterEditorStories {
                 // to the panes that are open: to the input while it is, then to the output
                 .story("DataPanesFoldAway", context -> render(context, false))
                 .withPlay(play -> {
-                    selectTemplate(play, "pair");
                     final Query input = play.getByRole("button", StroomDom.button("Input"));
                     final Query variables = play.getByRole("button", StroomDom.button("Variables"));
                     final Query output = play.getByRole("button", StroomDom.button("Output"));
+                    // Run, then the pair, so that its captures are in scope and the variables
+                    // open by themselves (design 48 C6)
+                    play.waitFor(() -> play.expect(runButton(play)).toBeVisible());
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT)).not().toBeNull());
+                    selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(variables).toHaveAttribute("aria-expanded", "true"));
                     play.waitFor(() -> play.expect(input).toHaveAttribute("aria-expanded", "true"));
                     play.expect(play.querySelector(".content-pane")).toBeVisible();
                     final int[] before = {0, 0};
@@ -736,9 +742,13 @@ public final class ShapeshifterEditorStories {
                 // bars, which is what a long sample is read in
                 .story("DataPanesFolded", context -> render(context, false))
                 .withPlay(play -> {
-                    selectTemplate(play, "pair");
                     final Query variables = play.getByRole("button", StroomDom.button("Variables"));
                     final Query output = play.getByRole("button", StroomDom.button("Output"));
+                    // Run, then the pair, so that its captures are in scope and the variables open
+                    play.waitFor(() -> play.expect(runButton(play)).toBeVisible());
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT)).not().toBeNull());
+                    selectTemplate(play, "pair");
                     play.waitFor(() -> play.expect(variables).toHaveAttribute("aria-expanded", "true"));
                     final int[] before = {0};
                     play.run("measure the input", () -> before[0] =
@@ -1406,14 +1416,20 @@ public final class ShapeshifterEditorStories {
                             .not().toBeNull());
                     play.click(play.querySelector(MARK_DOCUMENT));
                     play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR)).not().toBeNull());
-                    play.expect(play.getByText(NOTHING_IN_SCOPE)).toBeVisible();
+                    // Nothing in scope: the pane is folded away, saying so once if opened, and
+                    // not once a frame (design 48 C6)
+                    final Query variables = play.getByRole("button", StroomDom.button("Variables"));
+                    play.waitFor(() -> play.expect(variables).toHaveAttribute("aria-expanded", "false"));
+                    play.expect(play.getByText(NOTHING_IN_SCOPE)).toBeInTheDocument();
                     play.expect(play.queryByText("the document binds nothing")).toBeNull();
                     play.expect(play.queryByText("this pattern bound nothing")).toBeNull();
                     // ...and the sections come back whole the moment any frame on the path binds
                     // one. A section saying it bound nothing is right beside a section that
                     // bound something — that is a fact about one scope among several — and
                     // wrong only when it is the whole pane.
+                    // ...and opens by itself once something is
                     play.click(play.querySelector(MARK_PAIR));
+                    play.waitFor(() -> play.expect(variables).toHaveAttribute("aria-expanded", "true"));
                     play.waitFor(() -> play.expect(play.getByText("$key", VARIABLES_NAME))
                             .toBeVisible());
                     play.expect(play.queryByText(NOTHING_IN_SCOPE)).toBeNull();
@@ -1599,7 +1615,7 @@ public final class ShapeshifterEditorStories {
     static final String CRUMB_CURRENT = ".breadcrumb__name[aria-current=\"true\"]";
     private static final String CRUMB_OUTER =
             ".breadcrumb__name:not([aria-current=\"true\"])";
-    private static final String NOTHING_IN_SCOPE = "No name is in scope at the selected frame.";
+    private static final String NOTHING_IN_SCOPE = "No name is in scope at the selected match.";
 
     // The kind of instruction a body card holds ("text", "value-of", ...)
     static final String CARD_KIND = ".body-card__kind";

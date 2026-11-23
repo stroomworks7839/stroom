@@ -27,6 +27,7 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
@@ -58,6 +59,14 @@ public class SourceSettings extends Component {
     TextBox maxSequenceEntries;
     @UiField
     Label error;
+    @UiField
+    DisclosureButton advancedToggle;
+    @UiField
+    FlowPanel advanced;
+    // The author's own fold of Advanced, once they have made one, or null: it is kept over the
+    // opening a set dispatch or strict values asks for, which the settings are told again after
+    // every edit
+    private Boolean advancedChosen;
 
     public SourceSettings() {
         initWidget(BINDER.createAndBindUi(this));
@@ -73,9 +82,26 @@ public class SourceSettings extends Component {
         for (final Dispatch value : Dispatch.values()) {
             dispatch.addItem(value.name().toLowerCase(Locale.ROOT));
         }
+        advancedToggle.setExpanded(false);
+        advancedToggle.addClickHandler(event -> {
+            advancedChosen = !advancedToggle.isExpanded();
+            showAdvanced(advancedChosen);
+        });
         setError(null);
     }
 
+    // The tuning and compatibility settings, shown or folded away under their heading
+    private void showAdvanced(final boolean shown) {
+        advancedToggle.setExpanded(shown);
+        advanced.setVisible(shown);
+    }
+
+    // Opened for a setting that changes what the project does, unless the author has folded it
+    private void openAdvanced() {
+        if (advancedChosen == null) {
+            showAdvanced(true);
+        }
+    }
 
     private void onName(final ValueChangeEvent<String> e) {
         changed();
@@ -194,6 +220,10 @@ public class SourceSettings extends Component {
     }
 
     public void setDispatch(final Dispatch value) {
+        if (value != null) {
+            // A choice that changes what the project does is not folded away out of sight
+            openAdvanced();
+        }
         dispatch.setValue(value == null
                 ? null
                 : value.name().toLowerCase(Locale.ROOT), false);
@@ -204,6 +234,10 @@ public class SourceSettings extends Component {
     }
 
     public void setStrictValues(final boolean value) {
+        if (value) {
+            // As a dispatch strategy: it changes what the project does
+            openAdvanced();
+        }
         strictValues.setValue(value);
     }
 

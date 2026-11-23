@@ -36,8 +36,12 @@ public class CardList extends Composite {
     private final List<BodyCard> cards = new ArrayList<>();
 
     /// Notes are per card by position; a nested list has none (the run annotates top-level cards).
+    ///
+    /// @param name What a nested list is called on the link that adds to it, e.g. `then`; null
+    ///             for the body itself.
     public CardList(final int[] listPath, final List<OutputNode> cards, final List<CardNote> notes,
-                    final Body.CardActions handlers, final boolean enabled, final boolean nested) {
+                    final Body.CardActions handlers, final boolean enabled, final boolean nested,
+                    final String name) {
         final FlowPanel panel = new FlowPanel();
         // How deep the list is, for its rows to indent by: they are flush to the pane's edges,
         // so that a row's hover and selection run the pane's width, and it is what is in them
@@ -65,7 +69,7 @@ public class CardList extends Composite {
             final Widget editor = handlers.newEditorAt(list, cards.size());
             panel.add(editor != null
                     ? editor
-                    : addLink(listPath, cards.size(), handlers));
+                    : addLink(listPath, cards.size(), handlers, name));
         } else if (cards.isEmpty()) {
             final Label none = new Label("(no instructions)");
             none.setStyleName("placeholder");
@@ -77,12 +81,17 @@ public class CardList extends Composite {
     // The link a list ends with: the same add link the declarations and the captures have,
     // and the template panel's lists (the owner, 2026-11-18), on a line of its own under the
     // rows and stepped in as they are.
-    private static FlowPanel addLink(final int[] listPath, final int count, final Body.CardActions handlers) {
-        final LinkButton add = new LinkButton("+ instruction");
+    // A nested list's says which list it is (design 48 §6): by stage 15 of rung 5 three stood on
+    // screen at once, told apart only by how far each was stepped in.
+    private static FlowPanel addLink(final int[] listPath, final int count, final Body.CardActions handlers,
+                                     final String name) {
+        final LinkButton add = new LinkButton(name == null
+                ? "+ instruction"
+                : "+ in " + name);
         add.addStyleName("add-button");
         add.setTitle("Click to add an instruction");
         add.setOnClick(() -> handlers.onNew(Bodies.path(listPath), count));
-        handlers.onAddShown(Bodies.path(Bodies.child(listPath, count)), () -> add.getElement().focus());
+        handlers.onAddShown(Bodies.path(Bodies.child(listPath, count)), add.getElement());
         final FlowPanel line = new FlowPanel();
         line.setStyleName("body-card__add");
         line.add(add);

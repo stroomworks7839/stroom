@@ -71,6 +71,9 @@ public class ShapeshifterDesign extends Component {
     OutputPane output;
 
     private Widget workbenchWidget;
+    private final FoldingPanes dataPanes;
+    // Whether the user folded or opened the variables, which is kept over what is in scope
+    private Boolean variablesFolded;
     private Widget samplePageWidget;
 
     public ShapeshifterDesign() {
@@ -78,11 +81,16 @@ public class ShapeshifterDesign extends Component {
         setBanner(null);
         // Read downwards: the input takes the rest when it is open, since it is the one a long
         // sample needs room in, then the output, then the variables
-        new FoldingPanes(data)
+        dataPanes = new FoldingPanes(data)
                 .add(inputPane, "*")
                 .add(variablesPane, "22%")
                 .add(outputPane, "33%")
                 .restFirst(inputPane, outputPane, variablesPane);
+        dataPanes.setOnFold(pane -> {
+            if (pane == variablesPane) {
+                variablesFolded = pane.isCollapsed();
+            }
+        });
         // The work above the messages never folds, so it takes the rest
         new FoldingPanes(work)
                 .add(centre, "*")
@@ -97,6 +105,17 @@ public class ShapeshifterDesign extends Component {
         messagesPane.setHeading(count == 0
                 ? "Messages"
                 : "Messages · " + count);
+    }
+
+    /// Folds the variables away while nothing is in scope at the cursor and opens them when
+    /// something is (design 48 C6), unless the user has folded or opened them, which is kept: a
+    /// pane of nothing to say is one more thing to read before there are any names.
+    ///
+    /// @param anything Whether any name is in scope at the cursor.
+    public void showVariables(final boolean anything) {
+        dataPanes.fold(variablesPane, variablesFolded == null
+                ? !anything
+                : variablesFolded);
     }
 
     public void setKeyHandler(final KeyDownHandler handler) {
