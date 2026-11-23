@@ -74,6 +74,9 @@ public class ShapeshifterDesign extends Component {
     private final FoldingPanes dataPanes;
     // Whether the user folded or opened the variables, which is kept over what is in scope
     private Boolean variablesFolded;
+    private final FoldingPanes workPanes;
+    // Whether the user folded or opened the messages, which is kept over whether there are any
+    private Boolean messagesFolded;
     private Widget samplePageWidget;
 
     public ShapeshifterDesign() {
@@ -92,19 +95,26 @@ public class ShapeshifterDesign extends Component {
             }
         });
         // The work above the messages never folds, so it takes the rest
-        new FoldingPanes(work)
+        workPanes = new FoldingPanes(work)
                 .add(centre, "*")
                 .add(messagesPane, "110px");
+        workPanes.setOnFold(pane -> messagesFolded = pane.isCollapsed());
+        setMessageCount(0);
     }
 
     /// Says how many messages there are on the messages' title bar, so that the bar still says
-    /// whether there is anything to read when the pane is folded away.
+    /// whether there is anything to read when the pane is folded away. With none, the pane folds
+    /// and the work has its room; with any, it opens (design 48, ruled 2026-11-23) — unless the
+    /// user has folded or opened it, which is kept.
     ///
     /// @param count How many messages the last run or check left.
     public void setMessageCount(final int count) {
         messagesPane.setHeading(count == 0
                 ? "Messages"
                 : "Messages · " + count);
+        workPanes.fold(messagesPane, messagesFolded == null
+                ? count == 0
+                : messagesFolded);
     }
 
     /// Folds the variables away while nothing is in scope at the cursor and opens them when

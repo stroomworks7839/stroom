@@ -887,7 +887,9 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   47 D) — the dialogs the editors had come to be shown in are gone — but what it holds is a
   **draft**, taken with Enter or OK and dropped with Escape, because several kinds cannot
   exist half-filled in the real model and live commit would apply at some keystrokes and not
-  at others. Whether that stands, or this ruling does, is open in design 47 §5.
+  at others. **Ruled 2026-11-23: the draft stands**, and replaces this ruling (design 47 §5):
+  Enter or OK takes it, Escape or Cancel drops it. Its OK and Cancel are Stroom's dialog
+  buttons, under the fields, and not the ✓/✕ pair (design 48 §7).
 
   **Instructions move.** Each card carries a **grip** at its head — the only part of it
   that starts a drag, so dragging never fights click-to-edit or click-to-follow — and can
@@ -1127,7 +1129,7 @@ The rest, briefly:
   reveal on `:focus-within`, not just `:hover`. An affordance only a mouse can reach is not
   an affordance for everyone.
 - **Hit targets** are at least 24px (WCAG 2.5.8). The ✓/✕ pair that prompted this were
-  about 14×16, and are gone entirely now that editing commits live.
+  about 14×16, and are gone: a card has a dialog's OK and Cancel.
 - **The two unheaded panes are named.** Dropping the Content and Output titles was a real
   cost, and `aria-label` is how it is paid: the pane still has a name, it is just not
   drawn.
@@ -2063,7 +2065,7 @@ mechanics:
 | # | Question | Ruling |
 |---|---|---|
 | Q11 | Four template colours (and one capture hue, and three offered swatches) fail 4.5:1 now that they colour output text. Retune, or stop using them as text? | **Retune, and check it.** Hue kept, luminance lifted, and the suite fails if any colour used as text drops below AA — the palette is user-editable, so the rule belongs in a check. |
-| Q12 | How should a card editor commit or cancel? | **Live commit everywhere, Escape reverts** (§5.6) — the ✓/✕ pair goes, and the snapshot covers structural edits as well as text. |
+| Q12 | How should a card editor commit or cancel? | **Live commit everywhere, Escape reverts** (§5.6) — the ✓/✕ pair goes, and the snapshot covers structural edits as well as text. **Amended 2026-11-23: a card is a draft**, taken with Enter or OK and dropped with Escape or Cancel (design 47 D); the ✓/✕ pair stays gone. |
 | Q13 | How far should dragging an instruction go? | **Within a list, and into or out of a branch** — the move you want when something should become conditional. Keyboard equivalents are mandatory, not optional (§5.6). |
 | Q14 | What should Back/Forward restore? | **Frame + selected template** (§5.3), so a nav-panel click is undoable. |
 | Q16 | Should a point and a click in the content pane mean the deepest match, or the one at this level? | **This level**, in the immediate child template's colour, so the structure is discovered by descending it (§5.4). Ctrl-click keeps the deep jump. |

@@ -256,8 +256,8 @@ is not where the load comes from; it comes from what rung 1 shows and rung 5 doe
 | C1 | **Yes. Built 2026-11-23.** Empty sections are one line, `+ guard or limit · + declaration · + capture`: the guard's link is named for the limit too, which is what rung 5 sets, and it and the guard's own line open the workbench with them unfolded. Read only, an empty section is not shown. The clause list's `+ clause` gained the space it lacked, found once the shorter template brought it on screen. |
 | C2 | **Yes. Built 2026-11-23.** The role picker shows once another template shares the mode, or the template is already advance only. |
 | C3 | **Yes, amended by the gate. Built 2026-11-23.** Settings shows Project name, Encoding, Ignore errors and Buffer size; Version, Dispatch, Max sequence entries and Strict values fold under Advanced, which opens by itself when the dispatch or strict values are set. Buffer size was to fold too, and the gate refused it: rung 6 sets it, and opening Advanced cost that rung a click. |
-| C4 | **Yes. Built 2026-11-23.** The document row sits under no heading; `mode: default` heads templates in the default mode only beside a named mode, or where the heading has a note to say (§7, "Found in review"). |
-| C5 | **Yes, narrowed.** Run results (row counts, `not tried`, heat bars, card notes, the stepper) appear after the first run; a row's limit note stays. |
+| C4 | **Yes. Built 2026-11-23.** The document row sits under no heading; `mode: default` heads templates in the default mode only beside a named mode, or where the heading has a note to say (§7, "Found in review"; ruled to stay, 2026-11-23). |
+| C5 | **Yes, narrowed, with another trigger. Built 2026-11-23.** A template's results — its row's count and heat bar, and the heading's run note — show once the run has tried it. `not tried` shows only where it was passed over: the run tried another template of its mode. Otherwise it reads as before any run, by its kind. A row's limit note stays. See "C5's trigger" below. |
 | C6 | **Yes. Built 2026-11-23.** The Variables pane folds away while no name is in scope at the cursor and opens when one is, unless the user has folded or opened it, which is kept. |
 | C7 | **Yes. Built 2026-11-23.** The role help, the settings header, the Output and Variables empty texts, the sample's tip and the variables' section links say *match*. *Frame* stays in the crumb, and in what only a stepping author reads (the guard's verdict counts). |
 | C8 | **No.** Both template Adds stay. |
@@ -293,6 +293,31 @@ once there is a sample, so from rung 1's stage 5 there is always a run, and "aft
 hides nothing. C5 needs another trigger before it is built: for instance, a template's results
 appear once *it* has been tried, so that `not tried` is shown only for a template the run could
 have reached and did not.
+
+**Ruled 2026-11-23: tried, or passed over**, over *once tried, nothing before*, which would make a
+template shadowed by the one above it look the same as one the run never got near.
+`Profile.tried` and `Profile.passedOver` say which, and the panel's row and the heading both ask
+them (`ProfileTest`, `OnlyATemplatePassedOverIsNotTried`).
+
+- **The heading's run note is short.** `3 attempts · 2 matched (67%) · …` was cut short after its
+  first number; it is `matched 2/3`, `skipped 1/1` for an advance-only template, or `not
+  tried`, and its tooltip has every number. It is whole at rung 1's size; a long name, mode or
+  count can still cut its end, which is the note giving way as it was made to.
+- **The document is never `not tried`.** It is run and not tried, so its heading and its row's
+  tooltip said so wrongly; the heading says nothing, and the tooltip gives the run's total.
+- **Card notes needed nothing.** A card has one only where the run reached it.
+- **The stepper stays as it was**, shown after any run with its buttons dead where nothing
+  matched. That is "after the first run" to the letter, and hiding it was decided against when it
+  was built: a control that comes and goes reads as one that is not there (`BreadcrumbController`).
+
+### Measured: the match line scrolling off (§6) — 2026-11-23
+
+At 1280×720, with C1 built. Rung 5's stage 14 fits whole. Stage 15 does not, by 22px, and the top
+half of the match line goes under the name. The empty Messages pane below takes about 110px of the
+same column. **Ruled and built 2026-11-23: Messages folds to its title bar while there are none**,
+as Variables does (C6), and opens when one arrives, unless the author has folded or opened it
+(`MessagesAreFoldedWhileThereAreNone` and the three after it). That is about 80px, where pinning
+the match line would have taken about 40px from every body. A body taller still scrolls.
 
 ### Asked for while building — 2026-11-23
 

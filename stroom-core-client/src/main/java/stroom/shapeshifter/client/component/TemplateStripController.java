@@ -35,7 +35,6 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
-import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
@@ -238,7 +237,7 @@ public class TemplateStripController extends Controller {
         modeTemplates = ids;
         view.setHeader("Mode", null, mode, rows.size() == 1
                 ? "1 template"
-                : rows.size() + " templates", "");
+                : rows.size() + " templates", "", "");
         final Modes.DispatchState state = project == null
                 ? new Modes.DispatchState(0, true, null, false, null, List.of())
                 : Modes.dispatchState(project, mode);
@@ -321,7 +320,8 @@ public class TemplateStripController extends Controller {
         if (template == null) {
             view.setHeader("Document", null, project == null
                     ? ""
-                    : project.name(), "", "the document: every template is reached from here");
+                    : project.name(), "", "the document: every template is reached from here",
+                    "the document: every template is reached from here");
             view.setNameEditable(false, "", "");
             view.setRole(false, MatchRole.RECORD, false, "", false);
             view.setMatchVisible(false);
@@ -336,7 +336,8 @@ public class TemplateStripController extends Controller {
             closeTitle();
         }
         view.setHeader("Template", host.colour(template.id()), template.name(), "mode " + Modes.label(template.mode()),
-                "dispatched from " + dispatchedFrom(project, template) + runNote(template));
+                dispatchedNote(project, template) + runNote(project, template),
+                dispatchedNote(project, template) + runTitle(template));
         view.setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 GuardClause.describe(template.guard()) + guardVerdict(template) + " · "
                 + Templates.describeLimits(template.matchLimits()), !Templates.unguardedAndUnlimited(template),
@@ -368,22 +369,29 @@ public class TemplateStripController extends Controller {
         bodyPresenter.revealCard(index);
     }
 
-    /// After a run, what it made of this template: how many matches, or where it was tried for none.
-    private String runNote(final Template template) {
+    private static String dispatchedNote(final Project project, final Template template) {
+        return "dispatched from " + dispatchedFrom(project, template);
+    }
+
+    // After a run that has something to say of this template, what it made of it, in the few
+    // words the heading has room for
+    private String runNote(final Project project, final Template template) {
         final TraceModel trace = host.trace();
-        final Timing timing = trace == null
+        final String summary = trace == null || project == null
                 ? null
-                : trace.timing(template.id());
-        if (trace == null) {
-            return "";
-        }
-        if (timing == null || timing.getAttempts() == 0) {
-            return " · not tried in this run";
-        }
-        if (timing.getMatched() == 0) {
-            return " · no matches · " + Profile.describe(trace, template.id());
-        }
-        return " · " + Profile.describe(trace, template.id());
+                : Profile.summary(project, trace, template);
+        return summary == null
+                ? ""
+                : " · " + summary;
+    }
+
+    // The same, with every number
+    private String runTitle(final Template template) {
+        final TraceModel trace = host.trace();
+        final Project project = host.getProject();
+        return trace == null || project == null || Profile.summary(project, trace, template) == null
+                ? ""
+                : " · " + Profile.describe(trace, template.id());
     }
 
     public String getTemplateId() {

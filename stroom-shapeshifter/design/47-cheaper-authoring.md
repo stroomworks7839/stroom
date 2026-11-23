@@ -458,7 +458,7 @@ Three things building it turned up:
   for the same reason: the cards are drawn again when the trace lands. It is carried as the
   widget it is, so nothing typed is lost and the keyboard goes back into it.
 
-**It departs from design 18 Q12, and that is not yet ruled.** Design 18 §5.6 (2026-08-28)
+**It departed from design 18 Q12. Ruled 2026-11-23: as built, and Q12 amended.** Design 18 §5.6 (2026-08-28)
 has a card's editor *commit live, with Escape reverting to a snapshot* — no draft, and no
 tick-and-cross pair, which were too small to be targets. What is built holds a draft and
 has OK and Cancel, as words and at target size. The reason is the model, which the mock-up
@@ -467,7 +467,7 @@ no picture, a reference half typed — none of these is an instruction, so "appl
 type" would mean "applies whenever what is typed happens to be one", and the project would
 be valid at some keystrokes and unchanged at others with nothing on screen saying which.
 The draft was described to the owner and accepted on 2026-11-18, but not set against Q12
-when it was. §5 lists it.
+when it was; it was on 2026-11-23.
 
 **Measured.** Rungs 1 to 3 are unchanged, as expected: 70, 78 and 62. Their cards are text
 and value-of, which A already made a line each, and the two things they do through the
@@ -690,13 +690,15 @@ templated line is split into its sequence (2026-11-17, §3).
 **Still open:**
 
 1. **E: the layout.** Built to be looked at. *Recommended: keep it if a debugging session on a
-   long sample reads well in it; that has not been tried.*
+   long sample reads well in it; that has not been tried.* **Ruled 2026-11-23: a long sample
+   first.** `ShapeshifterLongSampleStories` is one — forty records, 364 lines, two levels of
+   matches — stepped through with the panes open and folded; awaiting the ruling on what it shows.
 2. **D: a draft, or live commit as design 18 Q12 has it.** Built as a draft, for the reason
-   in §3 D. *Recommended: the draft, and Q12 amended to say so — live commit asks the author
+   in §3 D. **Ruled 2026-11-23: the draft**, and Q12 amended. *Recommended: the draft, and Q12 amended to say so — live commit asks the author
    to know which keystrokes made an instruction.*
 3. **B: the dialog or in place.** A Pattern field in New Template, or a New row in the panel
-   and the Match line opened in place (§3 B, reassessed). **Built in place 2026-11-18, to be
-   looked at.** *It costs the same as the dialog would have, it is how cards now work, and
+   and the Match line opened in place (§3 B, reassessed). **Built in place 2026-11-18; ruled as
+   built 2026-11-23.** *It costs the same as the dialog would have, it is how cards now work, and
    its one field serves a pattern being changed as well as one being made. The first
    recommendation was the dialog, on the ground that it made no second editing surface for
    patterns; it made one too, used once.* Within it, and built as recommended: the keyboard
@@ -717,7 +719,7 @@ templated line is split into its sequence (2026-11-17, §3).
 9. **J**: a toolbar action that wraps rows in *only if it writes something*. *Recommended:
    decided after H and I are walked, against what the idiom then costs.*
 
-**Order:** A, D and C are built; E and B are built to be looked at. From here, §7.6.
+**Order:** A, D and C are built; B was ruled as built 2026-11-23, and E waits on its long sample. From here, §7.6.
 
 ## 6. What this does not cover
 

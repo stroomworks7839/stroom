@@ -33,9 +33,11 @@ import com.google.gwt.user.client.ui.Widget;
 /// (design 48): the role, the default mode's heading, Advanced, and the empty sections.
 public final class ShapeshifterConceptStories {
 
+    private static final String DOC_ROUTE = "/shapeshifter/v1/ss-strict-kv";
     private static final String IN_MODE_KV = ", \"mode\": \"kv\"";
     private static final String ORDER_NOTE = "tried top to bottom: the first to match takes it";
     private static final String MODE_NOTE = ".template-panel__mode-note";
+    private static final String NOTE = ".template-strip__note";
     private static final String KEY = ".key-label";
     private static final String EXPANDED = "aria-expanded";
 
@@ -54,6 +56,21 @@ public final class ShapeshifterConceptStories {
             "{\"apply-templates\": {\"select\": {\"parts\": [{\"capture\": {\"group\": 0}}]},"
             + " \"mode\": \"kv\", \"dispatch\": \"lexer\"}},"
             + " {\"text\": \"</records>\\n\"}]}");
+
+    // A template of a mode nothing has reached yet, beside the two of kv
+    private static final String NOT_REACHED = ShapeshifterEditorStories.PROJECT.replace(
+            "{\"id\": \"00000000-0000-0000-0000-000000000003\"",
+            "{\"id\": \"00000000-0000-0000-0000-000000000004\", \"name\": \"later\", \"mode\": \"later\","
+            + " \"match\": {\"regex\": {\"pattern\": \"x\"}}, \"body\": []},"
+            + " {\"id\": \"00000000-0000-0000-0000-000000000003\"");
+
+    // A run in which the pair took everything, so that junk_line's turn never came
+    private static final String PASSED_OVER = ShapeshifterEditorStories.TRACE
+            .replace("\"attempts\": 1, \"matched\": 1", "\"attempts\": 0, \"matched\": 0");
+
+    // The same run, with nothing said of it
+    private static final String SAID_NOTHING = PASSED_OVER.substring(0, PASSED_OVER.indexOf("{\"severity\""))
+                                               + PASSED_OVER.substring(PASSED_OVER.indexOf("],\n  \"runNanos\""));
 
     private ShapeshifterConceptStories() {
         // Static utility
@@ -155,7 +172,76 @@ public final class ShapeshifterConceptStories {
                     play.waitFor(() -> play.expect(play.queryByText("seen")).toBeNull());
                     play.waitFor(() -> play.expect(addDeclaration(play)).toHaveFocus());
                     ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // A template's results show once the run has tried it. The editor runs after
+                // every edit, so "not tried" is kept for one that was passed over: another of its
+                // mode was tried and took everything
+                .story("OnlyATemplatePassedOverIsNotTried", context -> render(context, NOT_REACHED, PASSED_OVER))
+                .withPlay(play -> {
+                    Walkthrough.expectTried(play, "pair", "2");
+                    Walkthrough.expectTried(play, "junk_line", "not tried");
+                    Walkthrough.expectTried(play, "later", "regex");
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("dispatched from source · matched 2/3", NOTE))
+                            .toBeVisible());
+                    ShapeshifterEditorStories.selectTemplate(play, "later");
+                    play.waitFor(() -> play.expect(play.getByText("later", ShapeshifterEditorStories.STRIP_NAME))
+                            .toBeVisible());
+                    play.expect(play.queryByText(TextMatch.containing("not tried"), NOTE)).toBeNull();
+                    ShapeshifterEditorStories.selectTemplate(play, "junk_line");
+                    play.waitFor(() -> play.expect(play.getByText("dispatched from source · not tried", NOTE))
+                            .toBeVisible());
+                    // The document is run and not tried, so it is never said not to have been
+                    ShapeshifterEditorStories.selectTemplate(play, "document");
+                    play.waitFor(() -> play.expect(play.getByText("source", ShapeshifterEditorStories.STRIP_NAME))
+                            .toBeVisible());
+                    play.expect(play.queryByText(TextMatch.containing("not tried"), NOTE)).toBeNull();
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // With no messages their pane is its title bar, and the work has its room; one
+                // arriving opens it
+                .story("MessagesAreFoldedWhileThereAreNone", context -> render(context, ONE_MODE))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(messages(play)).toHaveAttribute(EXPANDED, "false"));
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                .story("AMessageOpensItsPane", context -> render(context, NOT_REACHED, PASSED_OVER))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(messages(play)).toHaveAttribute(EXPANDED, "true"));
+                    play.expect(play.getByText(TextMatch.containing("unrecognised line"))).toBeVisible();
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // Opened by the author with nothing in it, it stays open through a run that says
+                // nothing; folded with something in it, it stays folded through one that does
+                .story("MessagesOpenedStayOpen", context -> render(context, NOT_REACHED, SAID_NOTHING))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(messages(play)).toHaveAttribute(EXPANDED, "false"));
+                    Walkthrough.expectTried(play, "pair", "2");
+                    play.click(messages(play));
+                    play.expect(messages(play)).toHaveAttribute(EXPANDED, "true");
+                    runAgain(play);
+                    play.expect(messages(play)).toHaveAttribute(EXPANDED, "true");
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                .story("MessagesFoldedStayFolded", context -> render(context, NOT_REACHED, PASSED_OVER))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(messages(play)).toHaveAttribute(EXPANDED, "true"));
+                    play.click(messages(play));
+                    play.expect(messages(play)).toHaveAttribute(EXPANDED, "false");
+                    runAgain(play);
+                    play.expect(messages(play)).toHaveAttribute(EXPANDED, "false");
+                    ShapeshifterEditorStories.expectNoProblems(play);
                 });
+    }
+
+    // Run, and wait for the answer: the crumb says a run is on until there is one
+    private static void runAgain(final Play play) {
+        play.click(ShapeshifterEditorStories.runButton(play));
+        play.waitFor(() -> play.expect(play.queryByText(TextMatch.containing("stale —"))).toBeNull());
+    }
+
+    private static Query messages(final Play play) {
+        return play.getByRole("button", TextMatch.regex("^Messages( · [0-9]+)?$"));
     }
 
     private static Query advanced(final Play play) {
@@ -181,11 +267,23 @@ public final class ShapeshifterConceptStories {
     }
 
     private static Widget render(final StoryContext context, final String project) {
-        final String doc = "{\"type\": \"" + ShapeshifterDoc.TYPE + "\","
-                           + " \"uuid\": \"ss-strict-kv\", \"name\": \"Key Value Lines\","
-                           + " \"data\": " + ShapeshifterEditorStories.asJsonString(project) + "}";
         return ShapeshifterEditorStories.render(context, RestFixtures.builder()
-                .get("/shapeshifter/v1/ss-strict-kv", RestReply.json(doc))
+                .get(DOC_ROUTE, RestReply.json(doc(project, "")))
                 .build());
+    }
+
+    // With a sample, which the editor runs the project over as it opens
+    private static Widget render(final StoryContext context, final String project, final String trace) {
+        return ShapeshifterEditorStories.render(context, RestFixtures.builder()
+                .get(DOC_ROUTE, RestReply.json(doc(project,
+                        ", \"sampleText\": \"host=web01\\nlevel=warn\\n\", \"sampleKind\": \"PASTED\"")))
+                .post("/shapeshifter/v1/preview", RestReply.json(trace))
+                .build());
+    }
+
+    private static String doc(final String project, final String sample) {
+        return "{\"type\": \"" + ShapeshifterDoc.TYPE + "\","
+               + " \"uuid\": \"ss-strict-kv\", \"name\": \"Key Value Lines\","
+               + " \"data\": " + ShapeshifterEditorStories.asJsonString(project) + sample + "}";
     }
 }

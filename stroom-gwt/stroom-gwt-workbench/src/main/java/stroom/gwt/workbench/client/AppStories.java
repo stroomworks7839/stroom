@@ -150,6 +150,7 @@ import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterEditorStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLenRecordsStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLexerStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLibraryStories;
+import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLongSampleStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterPaneStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterSplitStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterTemplateStories;
@@ -429,6 +430,7 @@ public final class AppStories {
         ShapeshifterLexerStories.addTo(registry);
         ShapeshifterClassifyStories.addTo(registry);
         ShapeshifterConceptStories.addTo(registry);
+        ShapeshifterLongSampleStories.addTo(registry);
         // App/Security/DocumentPermissionsTab
         DocumentPermissionsTabStories.addTo(registry);
         // App/Index/ElasticIndexEditor

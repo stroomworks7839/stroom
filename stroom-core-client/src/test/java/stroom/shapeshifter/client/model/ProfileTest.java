@@ -16,6 +16,9 @@
 
 package stroom.shapeshifter.client.model;
 
+import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 
@@ -64,5 +67,56 @@ class ProfileTest {
         assertThat(Profile.micros(12_400)).isEqualTo("12 µs");
         assertThat(Profile.micros(2_340_000)).isEqualTo("2.3 ms");
         assertThat(Profile.percent(0.333)).isEqualTo("33%");
+    }
+
+    private static Template template(final String name, final String mode, final boolean consume,
+                                     final MatchExpression match) {
+        return new Template(ProjectText.newId(), name, mode, consume, null, null, null, match, null, null,
+                List.of(), null, false);
+    }
+
+    private static Template regex(final String name, final String mode, final boolean consume) {
+        return template(name, mode, consume, new MatchExpression.Regex("a", null, 0));
+    }
+
+    private static TraceModel trace(final Timing... timings) {
+        return new TraceModel(new ShapeshifterTrace(true, true, "", "", List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), 0, List.of(timings), List.of(), 500_000));
+    }
+
+    @Test
+    void aTemplateIsPassedOverOnlyWhereAnotherOfItsModeWasTried() {
+        // Design 48 C5: the editor runs after every edit, so "not tried" said of everything not
+        // yet built told an author nothing
+        final Template document = template("source", null, false, new MatchExpression.Source());
+        final Template level = regex("level", null, false);
+        final Template pair = regex("pair", "kv", false);
+        final Template junk = regex("junk", "kv", true);
+        final Template later = regex("later", "later", false);
+        final Project project = new Project("p", 5, null, List.of(document, level, pair, junk, later), null);
+        final TraceModel trace = trace(new Timing(pair.id(), 3, 2, 0), new Timing(document.id(), 1, 1, 0));
+        assertThat(Profile.passedOver(project, trace, pair)).isFalse();
+        assertThat(Profile.passedOver(project, trace, junk)).isTrue();
+        assertThat(Profile.passedOver(project, trace, later)).isFalse();
+        // The document is in the same group, but is run and not tried
+        assertThat(Profile.passedOver(project, trace, level)).isFalse();
+        // and nothing passes it over
+        assertThat(Profile.passedOver(project, trace(new Timing(level.id(), 1, 1, 0)), document)).isFalse();
+        // A timing with no attempts is a template not tried
+        assertThat(Profile.tried(trace(new Timing(pair.id(), 0, 0, 0)), pair.id())).isFalse();
+        assertThat(Profile.passedOver(project, trace(new Timing(pair.id(), 0, 0, 0)), junk)).isFalse();
+    }
+
+    @Test
+    void aSummaryIsAFewWordsOrNone() {
+        final Template pair = regex("pair", "kv", false);
+        final Template junk = regex("junk", "kv", true);
+        final Project project = new Project("p", 5, null, List.of(pair, junk), null);
+        final TraceModel both = trace(new Timing(pair.id(), 3, 2, 0), new Timing(junk.id(), 1, 1, 0));
+        assertThat(Profile.summary(project, both, pair)).isEqualTo("matched 2/3");
+        assertThat(Profile.summary(project, both, junk)).isEqualTo("skipped 1/1");
+        assertThat(Profile.summary(project, trace(new Timing(pair.id(), 3, 0, 0)), pair)).isEqualTo("matched 0/3");
+        assertThat(Profile.summary(project, trace(new Timing(pair.id(), 3, 3, 0)), junk)).isEqualTo("not tried");
+        assertThat(Profile.summary(project, trace(), pair)).isNull();
     }
 }

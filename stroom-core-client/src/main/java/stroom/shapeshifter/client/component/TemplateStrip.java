@@ -452,8 +452,14 @@ public class TemplateStrip extends Component {
         onOpenWorkbench.run();
     }
 
+    /// @param titleText What is shown: `Template`, `Mode` or `Document`.
+    /// @param colour Its colour, or null for none.
+    /// @param nameText Its name.
+    /// @param modeText What is said of its mode.
+    /// @param noteText The note, which gives way when the strip is narrow.
+    /// @param noteTitle The note's tooltip: what the note says, in full.
     public void setHeader(final String titleText, final String colour, final String nameText, final String modeText,
-                          final String noteText) {
+                          final String noteText, final String noteTitle) {
         title.setText(titleText);
         chip.setVisible(colour != null);
         if (colour != null) {
@@ -464,7 +470,7 @@ public class TemplateStrip extends Component {
         note.setText(noteText);
         // The note is the part of the heading that gives way when the strip is narrow, so what
         // it says in full is on its tooltip
-        note.setTitle(noteText);
+        note.setTitle(noteTitle);
     }
 
     public void setRole(final boolean visible, final MatchRole value, final boolean enabled, final String note,

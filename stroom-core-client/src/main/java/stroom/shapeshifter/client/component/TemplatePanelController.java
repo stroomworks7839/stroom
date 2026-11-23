@@ -458,7 +458,7 @@ public class TemplatePanelController extends Controller {
                             ? new TemplateRowData(document.id(), "document", null, "transparent",
                                     "source", false)
                             : new TemplateRowData(document.id(), "document", null, "transparent",
-                                    "1", false, 0, 0, Profile.describe(trace, document.id()), 0));
+                                    "1", false, 0, 0, Profile.runTotal(trace), 0));
                     // It is a row like any other and its selection survives a refresh like any
                     // other. Added outside the loop below, so it needs saying here: without it,
                     // declaring a name on the document threw the author back to the settings.
@@ -467,16 +467,7 @@ public class TemplatePanelController extends Controller {
                 boolean firstOfMode = true;
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode) && !isDocument(template)) {
-                        // The profile is a run's reading (design 18 §5.8): before one, the row has a
-                        // kind and no heat.
-                        final TemplateRowData row = trace == null
-                                ? new TemplateRowData(template.id(), template.name(), section,
-                                        host.colour(template.id()), count(null, template), false)
-                                : new TemplateRowData(template.id(), template.name(), section,
-                                        host.colour(template.id()), count(trace, template), zero(trace, template),
-                                        Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
-                                        Profile.describe(trace, template.id()),
-                                        trace.worstOfTemplate(template.id()));
+                        final TemplateRowData row = row(project, trace, template, section);
                         row.setLimit(Templates.limitNote(template));
                         // The heading is drawn from the first row of the mode, so the note rides
                         // on that row.
@@ -554,9 +545,6 @@ public class TemplatePanelController extends Controller {
         return template.match() instanceof MatchExpression.Source;
     }
 
-    /// The row's right-hand word: the kind of match until there is a trace; then the match count,
-    /// or how many places were tried for none (design 18 §5.5 - a zero is a fact about the
-    /// sample, not a blank).
     // How many of a thing a section holds: `1 template`, `3 templates`
     private static String howMany(final int count, final String noun) {
         return count + " " + noun + (count == 1
@@ -564,16 +552,27 @@ public class TemplatePanelController extends Controller {
                 : "s");
     }
 
-    private static String count(final TraceModel trace, final Template template) {
-        final Timing timing = trace == null
-                ? null
-                : trace.timing(template.id());
-        if (trace == null) {
-            return Templates.kind(template.match());
+    // A template's row. Its run's results - the count, the heat and what was said - show once the
+    // run has tried it; not tried, it says so only where it was passed over, and otherwise reads
+    // as it does before any run, by its kind (design 48 C5).
+    private TemplateRowData row(final Project project, final TraceModel trace, final Template template,
+                                final String section) {
+        final String id = template.id();
+        final String colour = host.colour(id);
+        if (trace != null && Profile.tried(trace, id)) {
+            final Timing timing = trace.timing(id);
+            return new TemplateRowData(id, template.name(), section, colour, count(timing, template),
+                    timing.getMatched() == 0, Profile.share(trace, id), Profile.cost(trace, id),
+                    Profile.describe(trace, id), trace.worstOfTemplate(id));
         }
-        if (timing == null || timing.getAttempts() == 0) {
-            return "not tried";
-        }
+        return trace != null && Profile.passedOver(project, trace, template)
+                ? new TemplateRowData(id, template.name(), section, colour, "not tried", true)
+                : new TemplateRowData(id, template.name(), section, colour, Templates.kind(template.match()), false);
+    }
+
+    // The row's right-hand word once it has been tried: the match count, or how many places were
+    // tried for none (design 18 §5.5 - a zero is a fact about the sample, not a blank).
+    private static String count(final Timing timing, final Template template) {
         if (timing.getMatched() == 0) {
             return "0 · tried " + timing.getAttempts();
         }
@@ -583,13 +582,6 @@ public class TemplatePanelController extends Controller {
         return template.consume()
                 ? timing.getMatched() + " skipped"
                 : String.valueOf(timing.getMatched());
-    }
-
-    private static boolean zero(final TraceModel trace, final Template template) {
-        final Timing timing = trace == null
-                ? null
-                : trace.timing(template.id());
-        return trace != null && (timing == null || timing.getMatched() == 0);
     }
 
     private void enableButtons() {
