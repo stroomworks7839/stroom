@@ -1374,7 +1374,7 @@ one that was right for names.
 **What the walkthroughs turned up, as design questions rather than steps** — ~~three~~ four,
 now that rung 1 has been driven. None is about a missing form; all are about what the editor
 *tells* the author. **Moved to [44-the-workbench-kind-sample-library.md §8](44-the-workbench-kind-sample-library.md)
-as Q11 to Q14, ruled 2026-11-12**, because design 44 owns the panel and the strip and is where
+as Q11 to Q14, 2026-11-12, since ruled**, because design 44 owns the panel and the strip and is where
 the next change to either will be designed from. Summarised here only:
 
 - **The document row is labelled with a fixed word** (§5.9), so renaming that template — which
@@ -1488,7 +1488,9 @@ So what was built says **the fact, not what it implies**, in two places:
 **Only where it is not `STRICT`**, which is the reading everyone brings, so most projects show
 nothing at all; and nothing where sites disagree, because there is then no fact to state. The
 five explanatory sentences, the "dispatched more than one way" wording and the
-two-templates-or-more rule are all gone with the claim that motivated them.
+two-templates-or-more rule are all gone with the claim that motivated them. *Upheld 2026-11-23: design
+48 had put a strict mode's order back on its heading, without this set against it, and took it
+out again (design 48 §7, "Against W4").*
 
 The fact is `Modes.dispatchOf`, resolved with `Dispatch.effective` — the engine's own answer,
 because a site naming no strategy takes the project's — and pinned by `ModesTest`. It was right
@@ -1504,7 +1506,8 @@ the width. **Twice in two days, something the screenshots show and the assertion
 
 ### W5 — the rename that nothing confirms
 
-Already raised and ruled as design 44 Q11 (§5.9); noted here only because driving it is what
+Already raised as design 44 Q11 (§5.9), ruled and built 2026-11-23: the row says
+`document · source`. Noted here only because driving it is what
 found it, and it recurs in every rung that renames the root.
 
 ### Already fixed

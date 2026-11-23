@@ -7,6 +7,7 @@
             <g:FlowPanel styleName="template-row__line">
                 <t:Label ui:field="chip" styleName="chip"/>
                 <t:Label ui:field="name" styleName="template-row__name"/>
+                <t:Label ui:field="called" styleName="template-row__called"/>
                 <t:Label ui:field="flag" styleName="template-row__flag"/>
                 <t:Label ui:field="count" styleName="template-row__count"/>
                 <t:Label ui:field="limit" styleName="template-row__limit"/>

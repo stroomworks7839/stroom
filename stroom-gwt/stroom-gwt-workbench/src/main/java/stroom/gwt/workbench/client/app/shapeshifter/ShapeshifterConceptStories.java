@@ -35,8 +35,8 @@ public final class ShapeshifterConceptStories {
 
     private static final String DOC_ROUTE = "/shapeshifter/v1/ss-strict-kv";
     private static final String IN_MODE_KV = ", \"mode\": \"kv\"";
-    private static final String ORDER_NOTE = "tried top to bottom: the first to match takes it";
     private static final String MODE_NOTE = ".template-panel__mode-note";
+    private static final String CALLED = ".template-row__called";
     private static final String NOTE = ".template-strip__note";
     private static final String KEY = ".key-label";
     private static final String EXPANDED = "aria-expanded";
@@ -101,24 +101,43 @@ public final class ShapeshifterConceptStories {
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 // The default mode has no heading when it is the only mode, unless the heading
-                // has something to say
-                .story("ASingleModeSaysTheOrderItTriesItsTemplatesIn", context -> render(context, ONE_MODE))
+                // has something to say. A strict mode's has not: that its templates are tried in
+                // order is what everyone expects of a list (design 46 W4)
+                .story("ASingleStrictModeHasNoHeading", context -> render(context, ONE_MODE))
                 .withPlay(play -> {
-                    play.waitFor(() -> play.expect(play.getByText("mode: default")).toBeVisible());
-                    play.expect(play.getByText(ORDER_NOTE, MODE_NOTE)).toBeVisible();
+                    play.waitFor(() -> play.expect(play.getByText("junk_line",
+                            ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible());
+                    play.expect(play.queryByText("mode: default")).toBeNull();
+                    play.expect(play.querySelector(MODE_NOTE)).toBeNull();
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 .story("ASingleModeSaysHowItIsDispatched", context -> render(context, ONE_MODE_LEXER))
                 .withPlay(play -> {
-                    play.waitFor(() -> play.expect(play.getByText("dispatched with lexer", MODE_NOTE)).toBeVisible());
-                    play.expect(play.queryByText(ORDER_NOTE, MODE_NOTE)).toBeNull();
+                    play.waitFor(() -> play.expect(play.getByText("mode: default")).toBeVisible());
+                    play.expect(play.getByText("dispatched with lexer", MODE_NOTE)).toBeVisible();
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
-                // Sites that disagree have no one order: at the lexer's the longest match wins
-                .story("AModeDispatchedTwoWaysSaysNoOrder", context -> render(context, MIXED))
+                // The document's row says what its template is called (design 44 Q11), and not
+                // twice where it is called document
+                .story("TheDocumentRowSaysItsName", context -> render(context, ONE_MODE))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.getByText("· source", CALLED)).toBeVisible());
+                    play.expect(play.getByText("document", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible();
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                .story("ADocumentCalledDocumentSaysItOnce", context -> render(context,
+                        ONE_MODE.replace("\"name\": \"source\"", "\"name\": \"document\"")))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.getByText("document",
+                            ShapeshifterEditorStories.TEMPLATE_NAME)).toBeVisible());
+                    play.expect(play.queryByText(TextMatch.containing("·"), CALLED)).toBeNull();
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // Sites that disagree have no one strategy to say
+                .story("AModeDispatchedTwoWaysSaysNeither", context -> render(context, MIXED))
                 .withPlay(play -> {
                     play.waitFor(() -> play.expect(play.getByText("mode: kv")).toBeVisible());
-                    play.expect(play.queryByText(ORDER_NOTE, MODE_NOTE)).toBeNull();
+                    play.expect(play.querySelector(MODE_NOTE)).toBeNull();
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 // Advanced opens for a setting that changes what the project does; folded by the

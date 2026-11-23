@@ -51,6 +51,8 @@ public final class TemplateRowData {
     /// What the template's limit lets it match — `first only`, `at most 3` — or null for no
     /// limit on how many.
     private String limit;
+    /// What the template is called, where the row's name is a word for what it is, or null.
+    private String called;
 
     public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero) {
@@ -114,6 +116,22 @@ public final class TemplateRowData {
     /// @return This, so it can be set where the row is made.
     public TemplateRowData setLimit(final String limit) {
         this.limit = limit;
+        return this;
+    }
+
+    /// @return What the row's template is called, where its name here is a word for what it is,
+    ///         or null.
+    public String getCalled() {
+        return called;
+    }
+
+    /// Says what the row's template is called, where the name it has here is a word for what it
+    /// is: the document's (design 44 Q11, ruled 2026-11-23).
+    ///
+    /// @param called What it is called, or null where the word is its name.
+    /// @return This, so it can be set where the row is made.
+    public TemplateRowData setCalled(final String called) {
+        this.called = called;
         return this;
     }
 

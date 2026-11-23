@@ -264,7 +264,7 @@ is not where the load comes from; it comes from what rung 1 shows and rung 5 doe
 | C9 | **Yes. Built 2026-11-23.** No Patterns section until the library has a part. |
 | C10 | **Yes, first. Built 2026-11-23.** The Input's empty text points at the panel's Data row, and no longer says a pasted sample is not kept. A card of a kind chosen from the list is taken without opening an empty line after it, which a typed line still does (design 47 A). A dispatch site is named by its template alone, its body position only where one template dispatches into the mode twice. |
 | Nested adds | **Yes. Built 2026-11-23.** A nested list's link says which list: `+ in then`, `+ in when`, `+ in otherwise`, `+ in case x`, `+ in default`, and for a holder of one list its kind, `+ in variable`, `+ in for-each`. The body's own stays `+ instruction`. |
-| Order | **Yes, for strict modes. Built 2026-11-23.** A strict mode's heading says "tried top to bottom: the first to match takes it" once it has two templates. Only strict dispatch takes the first to match; a lexer or lax mode's heading says how it is dispatched instead, as it did. |
+| Order | **Yes, for strict modes; built 2026-11-23 and taken out the same day** on design 46 W4 being set against it (below, "Against W4"). A mode says which strategy it is dispatched with, where that is not strict, and not what its order means. |
 
 **How they are built**: C10 first, then each cut as its own change. Every rung's walkthrough is
 re-run after each, and a cut lands only if no rung's action count rises (§5a). Screenshots after
@@ -341,7 +341,7 @@ A review of the cuts found that four of them hid more, or less, than was ruled:
   said neither how it was dispatched nor the order. The default mode keeps its heading where there
   is a note.
 - **The order was claimed of dispatch sites that disagree.** The absence of a dispatch note was
-  read as strict, and it also means sites that differ. The order is now said only of strict.
+  read as strict, and it also means sites that differ. The order was then said only of strict, and is now not said at all ("Against W4").
 - **C3's Advanced would not stay folded.** A set dispatch or strict values opened it on every
   refresh, which is every edit. It is opened only until the author has folded or opened it.
 
@@ -349,6 +349,20 @@ And two smaller: `+ guard or limit` opened the guard pane for every template sho
 only for the one it was pressed on (C1); and the add link, hidden as its section appeared, took the
 keyboard with it. The keyboard now goes to the section's own add link, and back when the last row
 is removed. `ShapeshifterConceptStories` holds a story for each, seen to fail without its fix.
+
+### Against W4 — 2026-11-23, the order notes taken out
+
+§6 says of order that it is "the one fact that silently changes the output" and that the screen
+does not say it, and the order ruling and design 44 Q13's were made on that. Neither was set
+against design 46 §10 W4, which built the same thing on 2026-11-17 and cut it back the same day:
+an author writing a grammar knows a list of alternatives is ordered, a panel explaining it is
+chrome, and nobody had been seen to be confused. What W4 kept is *which* strategy is in force,
+which nothing else shows. §6's evidence is two fixtures and not an author, which is what W4 found
+thin.
+
+**Ruled 2026-11-23: as W4, the strategy only.** The notes are gone, the strict one committed
+earlier the same day among them, so a strict project of one mode has no heading again (C4). §8's
+session can say whether an author is confused by it.
 
 ## 8. What this cannot tell us
 

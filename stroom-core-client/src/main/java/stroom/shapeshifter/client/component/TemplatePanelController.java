@@ -362,20 +362,6 @@ public class TemplatePanelController extends Controller {
         return count;
     }
 
-    // A mode's note: how it is dispatched where that is not strict, and for a strict mode with
-    // two templates, the order they are tried in, which is the one fact about it that silently
-    // changes the output — said where the order is seen rather than in a tooltip on the move
-    // buttons (design 48 §6). Only strict dispatch takes the first to match; the others choose
-    // otherwise, and their note says which.
-    //
-    // Read off the dispatch itself, not off the absence of a note: no note also means sites that
-    // disagree, and then nothing is said about order, because it would be false at some of them.
-    private static String withOrder(final Project project, final String mode, final int inMode) {
-        return Modes.dispatchOf(project, mode) == Dispatch.STRICT && inMode >= 2
-                ? "tried top to bottom: the first to match takes it"
-                : dispatchNote(project, mode);
-    }
-
     /// Re-read the rows from the host's project, keeping the selection by id where it survives.
     /// Where it does not, nothing is selected, and that is said: what showed it — a mode's pane,
     /// a part's workbench — would otherwise go on showing what is no longer in the list
@@ -429,7 +415,7 @@ public class TemplatePanelController extends Controller {
                 // group is always dispatched, by the document template itself.
                 final String note = mode != null && !dispatched.contains(mode)
                         ? "nothing dispatches into this"
-                        : withOrder(project, mode, inMode);
+                        : dispatchNote(project, mode);
                 // The templates with no mode are headed `mode: default`, as a named mode is, but
                 // only when there are some, and only beside a named mode or where the heading has
                 // something to say: a project of one mode has no modes to tell apart, and the
@@ -454,11 +440,16 @@ public class TemplatePanelController extends Controller {
                     // and the count is the one execution a stream gets; a row that is dimmed
                     // and bar-less would read as a template that failed to match, which is the
                     // opposite of what this one is (design 44 §5m).
-                    rows.add(trace == null
-                            ? new TemplateRowData(document.id(), "document", null, "transparent",
-                                    "source", false)
+                    //
+                    // The word says which row it is, and the name what it is called (design 44
+                    // Q11); its kind would only say again that it is the document.
+                    final TemplateRowData row = trace == null
+                            ? new TemplateRowData(document.id(), "document", null, "transparent", "", false)
                             : new TemplateRowData(document.id(), "document", null, "transparent",
-                                    "1", false, 0, 0, Profile.runTotal(trace), 0));
+                                    "1", false, 0, 0, Profile.runTotal(trace), 0);
+                    rows.add(row.setCalled("document".equals(document.name())
+                            ? null
+                            : document.name()));
                     // It is a row like any other and its selection survives a refresh like any
                     // other. Added outside the loop below, so it needs saying here: without it,
                     // declaring a name on the document threw the author back to the settings.
@@ -647,11 +638,13 @@ public class TemplatePanelController extends Controller {
 
     /// The dispatch strategy in force for a mode, where that is news (design 46 §10 W4).
     ///
-    /// **The fact, not what it implies.** An earlier version of this said what the order *meant*
-    /// — "the first that matches wins", and so on. That was answering the wrong question: an
-    /// author writing a grammar knows a list of alternatives is ordered, and a panel explaining
-    /// it is chrome. What they cannot see is **which strategy is in force**, because it is chosen
-    /// on an `apply-templates` card that may belong to another template in another pane.
+    /// **The fact, not what it implies.** Earlier versions of this said what the order *meant*
+    /// — "the first that matches wins", and so on — twice, and it was taken out both times
+    /// (2026-11-17, and 2026-11-23: design 48 §7, "Against W4"). That was answering the wrong
+    /// question: an author writing a grammar knows a list of alternatives is ordered, and a panel
+    /// explaining it is chrome. What they cannot see is **which strategy is in force**, because
+    /// it is chosen on an `apply-templates` card that may belong to another template in another
+    /// pane.
     ///
     /// That is the gap §6.1 names: under `lexer` an author who knows order matters will move a
     /// template up to fix a problem they do not have, and nothing will change — reassuring or

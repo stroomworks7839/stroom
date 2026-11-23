@@ -687,7 +687,7 @@ the fixture already has, so each keystone stands as written and only the count m
 **Ruled and built:** A — the sequence is the model, a card is entered in the list, and a
 templated line is split into its sequence (2026-11-17, §3).
 
-**Still open:**
+**Each with its ruling; J alone is still open:**
 
 1. **E: the layout.** Built to be looked at. *Recommended: keep it if a debugging session on a
    long sample reads well in it; that has not been tried.* **Ruled 2026-11-23: a long sample
@@ -713,15 +713,19 @@ templated line is split into its sequence (2026-11-17, §3).
    second dispatch site is a decision, not a completion (§3 C, reassessed).
 
 5. **The no-mode level's name** (§7.3, finding 7): shown as *no mode*, never as a name, or
-   `root` forbidden as a mode name. *Recommended: the first.*
-6. **The row carries its limit** (§7.3, finding 8; design 44 Q12). *Recommended: yes, as a
+   `root` forbidden as a mode name. **Ruled 2026-11-19: it reads `default`, which is reserved**
+   (§7.3, §7.9). *Recommended: the first.*
+6. **The row carries its limit** (§7.3, finding 8; design 44 Q12). **Ruled 2026-11-19: yes; built**
+   (§7.9). *Recommended: yes, as a
    fact on the match summary, not an explanation.*
 7. **H**: re-baseline rungs 4 to 6's literals to `text`, and let A's line read `${…}` as a
-   reference of any kind — an amendment to A's "a bare word is text". *Recommended: both, or
+   reference of any kind — an amendment to A's "a bare word is text". **Ruled 2026-11-19: both; built** (§7.14).
+   *Recommended: both, or
    neither.*
 8. **F's outcome**, once measured: re-baseline `library_parts` to the explode's spelling, or
    fix up by hand. **Ruled 2026-11-19: re-baseline**, as recommended (§7.13).
-9. **J**: a toolbar action that wraps rows in *only if it writes something*. *Recommended:
+9. **J**: a toolbar action that wraps rows in *only if it writes something*. **Ruled 2026-11-19:
+   keep waiting** for real DS3 configurations (§7.19). *Recommended:
    decided after H and I are walked, against what the idiom then costs.*
 
 **Order:** A, D and C are built; B was ruled as built 2026-11-23, and E the same day. From here, §7.6.
@@ -792,19 +796,19 @@ ruling. **Ruling** means there is a choice to make first.
 | 5 | The capture dialog lists only the current template's declarations, not the document's run-scoped `heading` that it binds | 46 §6.4a | *Fixed* 2026-11-19 (§7.7) |
 | 6 | The `if` row: `+ clause` is a label the keyboard cannot reach, the clause's name box does not open its list when clicked, and the operator box has no accessible name | 46 §6.4a | *Fixed* 2026-11-19, but for the name box, which was a misreading (§7.7) |
 | 7 | A mode named `root` collides with the word for no mode in the panel, the strip, the Mode picker and the mode pane | 46 §6.4a | *Fixed* 2026-11-19 (§7.9) |
-| 8 | Two templates with the same match are identical in the panel. The limit that tells `header_record` from `data_record` is out of sight | 46 §6.4, 44 Q12 (open) | *Fixed* 2026-11-19 (§7.9) |
-| 9 | Every literal in rungs 4 to 6 is a quoted `value-of`, where an author would make `text`. The strict keystone makes the walks build the fixture's spelling | 46 §6.4a | **Ruling** — proposal H |
-| 10 | `heading[matchCount()]` is typed into a plain field, and A's line cannot say it | 46 §6.4 (a), 44 Q14 (open) | **Ruling** — proposal H |
-| 11 | *Don't write an empty record* is three nested instructions and a declaration, 39 actions | 46 §6.4 (b) | **Ruling** — proposal J |
+| 8 | Two templates with the same match are identical in the panel. The limit that tells `header_record` from `data_record` is out of sight | 46 §6.4, 44 Q12 | *Fixed* 2026-11-19 (§7.9) |
+| 9 | Every literal in rungs 4 to 6 is a quoted `value-of`, where an author would make `text`. The strict keystone makes the walks build the fixture's spelling | 46 §6.4a | *Fixed* 2026-11-19, H (§7.14) |
+| 10 | `heading[matchCount()]` is typed into a plain field, and A's line cannot say it | 46 §6.4 (a), 44 Q14 | *Fixed* — the line 2026-11-19, H (§7.14); the field 2026-11-20, Q14 (§7.19) |
+| 11 | *Don't write an empty record* is three nested instructions and a declaration, 39 actions | 46 §6.4 (b) | Waiting for real DS3 configurations — proposal J, ruled 2026-11-19 (§7.19) |
 | 12 | The walkthroughs' canned traces carry the fixtures' template ids, so a walked project's rows read *not tried* | 46 §6.3a | *Fixed* 2026-11-19, and half of it was the traces' (§7.7) |
 | 13 | The stories clear fields that are already empty: 12 actions in rung 4 that are not the author's | §7.1 | *Fixed* 2026-11-19 |
 | 14 | The Match line does nothing helpful while the regex in it does not compile. The messages only say why after it is taken | §3 B | *Fixed* 2026-11-19 (§7.7) |
 | 15 | A pattern part is still named in a prompt, both when it is added and when it is extracted, where a template and a mode are named in their titles | §3 B | *Fixed* 2026-11-19 for adding; extracting keeps its prompt, on purpose (§7.7) |
-| 16 | The mode pane does not list the sites that dispatch into the mode | §3 C | Proposal, small |
+| 16 | The mode pane does not list the sites that dispatch into the mode | §3 C | *Fixed* 2026-11-19 (§7.19) |
 | 17 | A card cannot be dropped on a list's `+ instruction` | §3 E | *Fixed* 2026-11-19 (§7.7) |
 | 18 | Nobody has debugged a long sample in E's layout | §3 E | *Done* 2026-11-23: a long sample, and E ruled as built |
 | 19 | D's draft departs from design 18 Q12's live commit | §3 D | *Ruled* 2026-11-23: the draft, §5 item 2 |
-| 20 | Rung 6 cannot be walked until the story can serve a stream fixture | 46 §6.5 | Ruled 2026-11-12, not built |
+| 20 | Rung 6 cannot be walked until the story can serve a stream fixture | 46 §6.5 | *Fixed* 2026-11-19, walked (§7.17) |
 | 21 | B′: a template from selected sample text | §3 B | Proposal, the largest and least certain |
 
 ### 7.3 Two fixes that need a word first

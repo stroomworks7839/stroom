@@ -50,6 +50,8 @@ public class TemplateRow extends Composite {
     @UiField
     Label name;
     @UiField
+    Label called;
+    @UiField
     Label flag;
     @UiField
     Label count;
@@ -84,6 +86,11 @@ public class TemplateRow extends Composite {
             chip.addStyleName("chip--outline");
         }
         name.setText(data.getName());
+        called.setVisible(data.getCalled() != null);
+        if (data.getCalled() != null) {
+            called.setText("· " + data.getCalled());
+            row.addStyleName("template-row--called");
+        }
         count.setText(data.getCount());
         limit.setText(data.getLimit() == null
                 ? ""
@@ -104,11 +111,7 @@ public class TemplateRow extends Composite {
         }
         row.setTitle(data.getId() == null
                 ? "The document: its name and source settings"
-                : data.getName() + (data.getLimit() == null
-                        ? ""
-                        : ", " + data.getLimit()) + " — " + (data.getProfile() == null
-                        ? data.getCount()
-                        : data.getProfile()));
+                : tooltip(data));
         // The heat bar (design 18 §5.8): length is the share of the run, colour the cost per
         // attempt against the run's - two metrics, one glyph.
         heat.setVisible(data.getProfile() != null);
@@ -120,6 +123,24 @@ public class TemplateRow extends Composite {
                             ? "template-row__heat-bar--warm"
                             : "template-row__heat-bar--hot");
         }
+    }
+
+    // What the row is, what it is called and limited to, and what the run made of it or its kind
+    private static String tooltip(final TemplateRowData data) {
+        final StringBuilder sb = new StringBuilder(data.getName());
+        if (data.getCalled() != null) {
+            sb.append(" · ").append(data.getCalled());
+        }
+        if (data.getLimit() != null) {
+            sb.append(", ").append(data.getLimit());
+        }
+        final String result = data.getProfile() == null
+                ? data.getCount()
+                : data.getProfile();
+        if (result != null && !result.isEmpty()) {
+            sb.append(" — ").append(result);
+        }
+        return sb.toString();
     }
 
     public TemplateRowData getData() {

@@ -1651,19 +1651,18 @@ left in the working tree for review.
 | Q9 | The navigator's back and forward: its own arrows, or the browser's? | **The browser's** (§5b, the owner, 2026-09-22), which is what design 18 §5.3 had asked for. |
 | Q10 | The chooser: a dialog from the crumb, or a page of the project? | **A page** (§5a, the owner, 2026-09-22), reached from the panel above the templates. |
 
-## 8. What the walkthroughs found — open, 2026-11-12
+## 8. What the walkthroughs found — 2026-11-12, since ruled
 
 Design 46 wrote the samples up as step-by-step walkthroughs and then drove rung 1 against the
 running editor. Four questions came out, and they belong here rather than there: none is about a
 missing form — every form the six samples need is built — and all four are about **what the panel
-and the strip tell the author**. Recorded for ruling; nothing is being changed on their account
-yet.
+and the strip tell the author**. Each is marked with its ruling.
 
 | # | Question | What was found |
 |---|---|---|
-| Q11 | The document row is labelled with the fixed word `document`, whatever the template is called. Every sample calls that template something else (`source`), so renaming it is a normal act — and it changes nothing the author can see, the new name appearing only in the strip's head. Should the row show the name, the word, or both? | Design 46 §5.9, met twice while driving rung 1: once asserting the rename, once selecting the row afterwards. |
-| Q12 | Two templates with the same match in the same mode are indistinguishable in the panel. `text_019_single_line_split` has exactly this: `header_record` and `data_record` both match `delimiter \|`, and the only things making the first the header are that it is listed first and that its `max` is 1. Getting either wrong mis-parses the file with no error anywhere. Should the row carry the limit, or the panel say why two identical matches are not the same template? | Design 46 §6.4, from stepping rung 5. |
-| Q13 | The panel's order means three different things, chosen by a picker in another pane: priority under `strict`, tie-break under `lexer`, nothing at all under `classify`. The move buttons' tooltips say *"earlier in dispatch order"*, but nothing says which rule is in force. Should the mode's heading carry it? | Design 46 §6.1 and §6.2, from stepping rungs 2 and 3. |
+| Q11 | The document row is labelled with the fixed word `document`, whatever the template is called. Every sample calls that template something else (`source`), so renaming it is a normal act — and it changes nothing the author can see, the new name appearing only in the strip's head. Should the row show the name, the word, or both? | Design 46 §5.9, met twice while driving rung 1: once asserting the rename, once selecting the row afterwards. **Ruled 2026-11-23: both, `document · source`; built.** The word says which row it is and the name, muted, what it is called; a template called `document` is not named twice, and the kind word `source` beside it went. |
+| Q12 | Two templates with the same match in the same mode are indistinguishable in the panel. `text_019_single_line_split` has exactly this: `header_record` and `data_record` both match `delimiter \|`, and the only things making the first the header are that it is listed first and that its `max` is 1. Getting either wrong mis-parses the file with no error anywhere. Should the row carry the limit, or the panel say why two identical matches are not the same template? | Design 46 §6.4, from stepping rung 5. **Ruled 2026-11-19: the row carries the limit; built** (design 47 §7.9). |
+| Q13 | The panel's order means three different things, chosen by a picker in another pane: priority under `strict`, tie-break under `lexer`, nothing at all under `classify`. The move buttons' tooltips say *"earlier in dispatch order"*, but nothing says which rule is in force. Should the mode's heading carry it? | Design 46 §6.1 and §6.2, from stepping rungs 2 and 3. **Ruled 2026-11-23: no; the strategy only**, as design 46 §10 W4 had it. Order notes were ruled in and built the same day, and taken out on W4 being set against them (design 48 §7, "Against W4"). |
 | Q14 | `heading[matchCount()]` is typed into a plain text field. It is the only way in the editor to say *the nth of these goes with the nth of those*, `match_index` having no form field anywhere, and it is the least discoverable thing in any of the six samples. Does it need an affordance, or is the reference language the right home for it? | Design 46 §6.4, from stepping rung 5. **Ruled 2026-11-19: suggest it in the Select; built 2026-11-20** (design 47 §7.19 item 4). A Select naming a declared list offers `[matchCount()]` and `[index()]` under itself. |
 
 A fifth was found and is **not** a question: the role picker says *advance only* where the
