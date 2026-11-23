@@ -243,7 +243,7 @@ is not where the load comes from; it comes from what rung 1 shows and rung 5 doe
   ("the first of the two that end with `+ instruction`"), and an author has to do the same by
   eye. Each could say whose it is: `+ in variable`, `+ in then`, `+ instruction`.
 - **The strip scrolls the match line off the top** once a body nests (stage 15): the template's
-  name stays, its match does not. That's a consequence of the strip being one scroll, and worth
+  name stays, its match does not. (*The name scrolls with it since 2026-11-23, design 47 E.*) That's a consequence of the strip being one scroll, and worth
   a look when C1 makes the strip shorter.
 - **Order is still named only in a tooltip.** `header_record` before `data_record` in `root` is
   what makes the header the header, as `pair` before `junk_line` is in rung 1. Twice now the one
@@ -258,7 +258,7 @@ is not where the load comes from; it comes from what rung 1 shows and rung 5 doe
 | C3 | **Yes, amended by the gate. Built 2026-11-23.** Settings shows Project name, Encoding, Ignore errors and Buffer size; Version, Dispatch, Max sequence entries and Strict values fold under Advanced, which opens by itself when the dispatch or strict values are set. Buffer size was to fold too, and the gate refused it: rung 6 sets it, and opening Advanced cost that rung a click. |
 | C4 | **Yes. Built 2026-11-23.** The document row sits under no heading; `mode: default` heads templates in the default mode only beside a named mode, or where the heading has a note to say (§7, "Found in review"; ruled to stay, 2026-11-23). |
 | C5 | **Yes, narrowed, with another trigger. Built 2026-11-23.** A template's results — its row's count and heat bar, and the heading's run note — show once the run has tried it. `not tried` shows only where it was passed over: the run tried another template of its mode. Otherwise it reads as before any run, by its kind. A row's limit note stays. See "C5's trigger" below. |
-| C6 | **Yes. Built 2026-11-23.** The Variables pane folds away while no name is in scope at the cursor and opens when one is, unless the user has folded or opened it, which is kept. |
+| C6 | **Yes. Built 2026-11-23.** The Variables pane folds away while no name is in scope at the cursor and opens when one is, unless the user has folded or opened it, which is kept. It starts folded: before the first run nothing told it there was nothing in scope, and it stood open and empty. |
 | C7 | **Yes. Built 2026-11-23.** The role help, the settings header, the Output and Variables empty texts, the sample's tip and the variables' section links say *match*. *Frame* stays in the crumb, and in what only a stepping author reads (the guard's verdict counts). |
 | C8 | **No.** Both template Adds stay. |
 | C9 | **Yes. Built 2026-11-23.** No Patterns section until the library has a part. |

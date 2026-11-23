@@ -7,28 +7,28 @@
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:btn="urn:import:stroom.widget.button.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
-    <!-- The heading, and the template itself under it: one scrolled area holding the match, the
-         guard, the names it defines and the body. The declarations and the captures were a
-         strip of two grids under this, 170px whether or not they held anything; they are
-         sections of the template now, a line each when empty (the owner, 2026-11-18). -->
-    <split:SplitPane vertical="true" thin="true"
-                     sizes="30px, *" minSizes="30px, 110px"
-                     names="Heading, Template"
-                     addStyleNames="max default-min-sizes template-strip">
-        <g:FlowPanel styleName="template-strip__head">
-            <t:Label ui:field="title" styleName="design-panel__title template-strip__pattern-title"/>
-            <t:Label ui:field="chip" styleName="chip chip--editable"
-                     title="Edit the name and settings"/>
-            <!-- The name, edited where it reads: a template's or a mode's (the owner,
-                 2026-11-18). There is no dialog for it and no field in the list. -->
-            <ss:NameEdit ui:field="name"/>
-            <t:Label ui:field="mode" styleName="template-strip__mode"/>
-            <t:Label ui:field="note" styleName="template-strip__note"/>
-        </g:FlowPanel>
-        <!-- Named and marked as a region: with the document shown the match, role and guard rows
-             are hidden, so nothing in here takes the focus and the pane makes itself the tab stop
-             that scrolling it with the keys needs. -->
-        <split:ScrollPane addStyleNames="max scroll-region" role="region" ariaLabel="Template">
+    <!-- The template, title and all: one scrolled area holding its name, the match, the guard,
+         the names it defines and the body (the owner, 2026-11-23; the title was a pane of its
+         own over the scrolled area). The declarations and the captures were a strip of two
+         grids under this, 170px whether or not they held anything; they are sections of the
+         template now, a line each when empty (the owner, 2026-11-18).
+
+         Named and marked as a region: with the document shown the match, role and guard rows
+         are hidden, so nothing in here takes the focus and the pane makes itself the tab stop
+         that scrolling it with the keys needs. -->
+    <split:ScrollPane ui:field="scroll" addStyleNames="max scroll-region template-strip" role="region"
+                      ariaLabel="Template">
+        <g:FlowPanel>
+            <g:FlowPanel styleName="template-strip__head">
+                <t:Label ui:field="title" styleName="design-panel__title template-strip__pattern-title"/>
+                <t:Label ui:field="chip" styleName="chip chip--editable"
+                         title="Edit the name and settings"/>
+                <!-- The name, edited where it reads: a template's or a mode's (the owner,
+                     2026-11-18). There is no dialog for it and no field in the list. -->
+                <ss:NameEdit ui:field="name"/>
+                <t:Label ui:field="mode" styleName="template-strip__mode"/>
+                <t:Label ui:field="note" styleName="template-strip__note"/>
+            </g:FlowPanel>
             <g:FlowPanel styleName="template-strip__body">
                 <!-- A template's settings other than its name, while its title is being
                      edited. A slot: they are made when the title is opened. -->
@@ -122,6 +122,6 @@
                 <ss:DefinitionList ui:field="captures" heading="Captures" kind="capture"/>
                 <g:SimplePanel ui:field="content" styleName="template-strip__content"/>
             </g:FlowPanel>
-        </split:ScrollPane>
-    </split:SplitPane>
+        </g:FlowPanel>
+    </split:ScrollPane>
 </ui:UiBinder>

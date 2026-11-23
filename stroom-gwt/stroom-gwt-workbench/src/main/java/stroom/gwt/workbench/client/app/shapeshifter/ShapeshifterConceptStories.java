@@ -36,6 +36,7 @@ public final class ShapeshifterConceptStories {
     private static final String DOC_ROUTE = "/shapeshifter/v1/ss-strict-kv";
     private static final String IN_MODE_KV = ", \"mode\": \"kv\"";
     private static final String MODE_NOTE = ".template-panel__mode-note";
+    private static final String STRIP = ".template-strip";
     private static final String CALLED = ".template-row__called";
     private static final String NOTE = ".template-strip__note";
     private static final String KEY = ".key-label";
@@ -71,6 +72,12 @@ public final class ShapeshifterConceptStories {
     // The same run, with nothing said of it
     private static final String SAID_NOTHING = PASSED_OVER.substring(0, PASSED_OVER.indexOf("{\"severity\""))
                                                + PASSED_OVER.substring(PASSED_OVER.indexOf("],\n  \"runNanos\""));
+
+    // Both templates with a body longer than the pane, so that neither puts the scroll back itself
+    private static final String LINES = "\"body\": [" + "{\"text\": \"line\"}, ".repeat(30);
+    private static final String LONG_BODY = ONE_MODE
+            .replace("\"body\": [{\"text\": \" <pair key", LINES + "{\"text\": \" <pair key")
+            .replace("\"body\": [{\"emit-error\"", LINES + "{\"emit-error\"");
 
     private ShapeshifterConceptStories() {
         // Static utility
@@ -217,6 +224,40 @@ public final class ShapeshifterConceptStories {
                     play.expect(play.queryByText(TextMatch.containing("not tried"), NOTE)).toBeNull();
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
+                // The template's title is the first row of what scrolls, not a bar over it (the
+                // owner, 2026-11-23). A template shown after another starts from its title, and
+                // a title opened from further down is brought into view
+                .story("TheTitleScrollsWithTheTemplate", context -> render(context, LONG_BODY))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("pair", ShapeshifterEditorStories.STRIP_NAME))
+                            .toBeVisible());
+                    scrollDown(play);
+                    play.waitFor(() -> play.expect("the title is out of sight", () -> titleBelowTop(play) < 0)
+                            .toEqual(true));
+                    ShapeshifterEditorStories.selectTemplate(play, "junk_line");
+                    play.waitFor(() -> play.expect(play.getByText("junk_line", ShapeshifterEditorStories.STRIP_NAME))
+                            .toBeVisible());
+                    play.waitFor(() -> play.expect("the title is in sight", () -> titleBelowTop(play) >= 0)
+                            .toEqual(true));
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("pair", ShapeshifterEditorStories.STRIP_NAME))
+                            .toBeVisible());
+                    scrollDown(play);
+                    // A template made from here is named where it is shown
+                    play.click(play.getByTitle("Click to add a template to mode default"));
+                    play.waitFor(() -> play.expect(play.getByLabelText("Template name")).toHaveFocus());
+                    play.expect("the title is in sight", () -> titleBelowTop(play) >= 0).toEqual(true);
+                    play.keyboard("{Escape}");
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // Nothing is in scope before there is a run, so the variables are their bar
+                .story("VariablesAreFoldedBeforeARun", context -> render(context, ONE_MODE))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.getByRole("button", StroomDom.button("Variables")))
+                            .toHaveAttribute(EXPANDED, "false"));
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
                 // With no messages their pane is its title bar, and the work has its room; one
                 // arriving opens it
                 .story("MessagesAreFoldedWhileThereAreNone", context -> render(context, ONE_MODE))
@@ -257,6 +298,18 @@ public final class ShapeshifterConceptStories {
     private static void runAgain(final Play play) {
         play.click(ShapeshifterEditorStories.runButton(play));
         play.waitFor(() -> play.expect(play.queryByText(TextMatch.containing("stale —"))).toBeNull());
+    }
+
+    private static void scrollDown(final Play play) {
+        play.run("scroll the template down", () ->
+                play.querySelector(STRIP).element().get().setScrollTop(10000));
+    }
+
+    // How far the title stands below the top of the template's scrolled area: less than nothing
+    // once it is scrolled off
+    private static int titleBelowTop(final Play play) {
+        return play.querySelector(STRIP + "__head").element().get().getAbsoluteTop()
+               - play.querySelector(STRIP).element().get().getAbsoluteTop();
     }
 
     private static Query messages(final Play play) {

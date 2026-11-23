@@ -24,6 +24,7 @@ import stroom.shapeshifter.config.Dispatch;
 import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextBox;
+import stroom.widget.layout.client.ScrollPane;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
 import stroom.widget.util.client.ContentFocus;
@@ -86,6 +87,8 @@ public class TemplateStrip extends Component {
 
     @UiField
     Label title;
+    @UiField
+    ScrollPane scroll;
     @UiField
     Label chip;
     @UiField
@@ -551,6 +554,12 @@ public class TemplateStrip extends Component {
         chip.setTitle(editable
                 ? title
                 : "");
+    }
+
+    /// Shows the top of the template, its name first: what another template or mode being shown
+    /// starts from, wherever the last was scrolled to.
+    public void scrollToTop() {
+        scroll.scrollToTop();
     }
 
     /// Opens the name as a field, with the keyboard in it.

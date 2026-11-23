@@ -94,6 +94,8 @@ public class ShapeshifterDesign extends Component {
                 variablesFolded = pane.isCollapsed();
             }
         });
+        // Nothing is in scope before there is a run
+        showVariables(false);
         // The work above the messages never folds, so it takes the rest
         workPanes = new FoldingPanes(work)
                 .add(centre, "*")

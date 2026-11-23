@@ -219,6 +219,7 @@ public class TemplateStripController extends Controller {
             bodyPresenter.leave();
             leaveTitle();
             leaveMatch();
+            view.scrollToTop();
         }
         this.templateId = null;
         this.mode = mode;
@@ -311,6 +312,7 @@ public class TemplateStripController extends Controller {
             bodyPresenter.leave();
             leaveTitle();
             leaveMatch();
+            view.scrollToTop();
         }
         this.mode = null;
         this.templateId = id;

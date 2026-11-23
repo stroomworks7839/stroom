@@ -21,7 +21,9 @@
        button stands beside it */
     align-items: center;
     gap: 10px;
-    padding: 2px 12px;
+    /* The first row of the scrolled area: as tall as its edit button's toolbar, with or without it */
+    min-height: 32px;
+    padding: 0 12px;
     white-space: nowrap;
     overflow: hidden;
 }

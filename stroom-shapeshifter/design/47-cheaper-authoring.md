@@ -540,6 +540,10 @@ open by its splitter is open. With it, two things the owner asked for at the sam
   which is where design 18 §5.5 had all four panes to begin with. None of the three is an
   Ace editor, so there was no theme to follow: they are marked-up text, and the surface is
   one rule.
+- **The template's title scrolls with it** (the owner, 2026-11-23). It was a pane of its own over
+  the scrolled area, with a splitter's line under it, and is now that area's first row. Showing
+  another template or mode starts from its title, and opening a title brings it into view; down a
+  long body the name is out of sight, and the panel's selection says which template it is.
 - **The input and the output lost the margin above their text.** The title bar is the room
   they need there, and the 8px they had under it was a second one.
 
