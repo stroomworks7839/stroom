@@ -459,3 +459,25 @@ it, and are marked.
 | 9 | One format-free `record` kind beneath the reader | **Yes**; format arms only where a reader opens bytes. |
 | 10 | Records as structured slices | **Yes**: a map or list over the record's bytes, decoding on access, memoised, read-only, the collections made interfaces; the per-format implementations hidden in their packages. |
 | 11 | The projection | **Kept as the eager option**, derived by the compiler, for readers that want demand up front and where most of a record is read. |
+
+## 9. Phase 0, in steps — proposed 2026-11-24, for ruling
+
+The owner's ruling of the same day: start, in the ruled order. Sized against the code as it is.
+
+| Step | What | Where it bears | Gate |
+|---|---|---|---|
+| 0a | `TypedValue.List`, `Map` and `Set` become interfaces, the engine's classes their only implementations | 55 uses in six engine files, `Body`, `CompiledRefs` and `VarRegistry` holding all but six | no golden moves; `PrintInlining` on the hot rows first, the full-suite point only if it shows a change (D57's cheap check) |
+| 0b | `RecordReader`, `Records`, `FormatRegistry`, `CompiledMatch.Native` and `Record`, run whole-buffer by `Level`, over a test reader of fixed records | engine only; nothing in the model can name it yet | engine tests |
+| 0c | `apply-templates` over a collection value, and the rule that a mode is all byte, all `record` or all one format | `Compiler`, `Body`, `Level` | engine tests; the byte path's rows unmoved |
+| 0d | The model: `MatchExpression.Native` with its JSON arm, `Record`, the `field` capture source and reference; JSON both ways; the compiler resolving a format or refusing it by name | the config module, which GWT compiles as well; `EveryVariantTest` | both modules' `check`, the GWT compile |
+| 0e | The projection, derived by `ReferenceCheck`'s walk | `ReferenceCheck` | engine tests |
+| 0f | The editor reads a native or `record` match, shows what it is and leaves it alone | `MatchKind`, `MatchLine`, `Templates` and the match editor, where a sealed switch has to say something | client tests, a story |
+
+0a is first because it is the only step that touches a path today's configurations run, so its cost
+is read on its own. 0d follows 0c so that nothing can be authored that cannot be run.
+
+| # | Question | Recommended |
+|---|---|---|
+| S1 | What does the editor do with a native match before its form exists (43's 42.x)? | **Show it and not edit it**, the Source tab being where it is written. A form designed before a reader exists would be designed against nothing. |
+| S2 | One commit a step, or the phase as one? | **One a step**, each gated, so a benchmark that moves has one change to blame. |
+| S3 | Is 0a benchmarked if `PrintInlining` shows no change? | **No**: D57. A full point is taken once, when the phase is done. |

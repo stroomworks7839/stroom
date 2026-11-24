@@ -252,7 +252,14 @@ than an engine limitation.
 ## Scope deliberately not ported
 
 ### E9 — Avro, Parquet and Protobuf
-**`deferred` ([D33](../design/00-decisions.md)).**
+**`resolved` 2026-11-24 for Avro and protobuf; `deferred` for Parquet, to
+[design 42](../design/42-native-records.md).** Design 38 parses an Avro object container and
+protobuf's wire format with templates and no library: `avro_users` and `protobuf_events` pass, and
+`AvroAmplifiedTest` and `ProtobufAmplifiedTest` hold the engine to the libraries' own reading. What
+a library adds to those two — a reader schema, descriptors, nested and repeated messages — is
+design 42's phase 4. Parquet is a file and not a stream, templates cannot read it, and
+`parquet_cities` is the one skipped fixture; it is design 42's phase 2. The three match kinds are
+not modelled any more: design 38 phase 4 deleted them, so what follows is how it was.
 
 Each needs a large third-party library. The match variants are modelled and refused at compile
 time with a clear message; their three fixtures stay vendored and are reported as skipped.
@@ -277,7 +284,8 @@ than looking it up by name — was the design beside it, and design 30 built it;
 question this entry is about is untouched by that and stands as written.
 
 ### E11 — `RecordingInstrument`
-**`deferred`.**
+**`superseded` 2026-11-24 by `TraceRecorder`** (design 18 §7, 2026-09-18), which is the shape the
+authoring tool wanted: what `preview` runs with.
 
 The `Instrument` seam is ported and tested; the recording implementation is not. Its only
 consumer was the the prototype node editor, which is not being ported. Whatever authoring tool Stroom
@@ -288,7 +296,9 @@ grows will want its own shape rather than that one.
 ## Decisions the port sets up
 
 ### E12 — The engine has no performance story at all
-**`open` — baseline recorded 2026-08-20** ([10-engine-compilation.md §5](../design/10-engine-compilation.md)):
+**`resolved` 2026-11-24, by what "Where the story is now" below says: it has one, written down,
+measured and gated. Of the costs listed last, the `Tag` step's is gone with the step interpreter
+(design 38) and the captured copies are E10's. `open` until then — baseline recorded 2026-08-20** ([10-engine-compilation.md §5](../design/10-engine-compilation.md)):
 1.5–67.6 MiB/s across the seven workloads, and one inversion — the anchored `win_sec_xml` is
 3.6× *slower* than its unanchored sibling, because `^`-anchored patterns are dispatched as
 unanchored searches and every attempt allocates a matcher. The two fixes are the named first
@@ -668,6 +678,8 @@ Pinned by `EngineBehaviourTest`, so the current behaviour is a test rather than 
 which is what makes the change safe to attempt.
 
 ### E14 — Whether the textual step subset should be lowered onto the combinator layer
+**`resolved` 2026-11-24, by [design 38](../design/38-one-composition-library.md): it was, and the
+step interpreter was retired (phase 4, `2f56daf088`).** Before that:
 **`open`, reframed by [D34](../design/00-decisions.md) — now purely an optimisation question.
 Waited for E17, which resolved 2026-08-20; nothing gates it now but E12's ordering.**
 
@@ -809,6 +821,8 @@ two maps declared there; the per-sequence restart of a capture's list is the cap
 and is pinned. Nothing about a lifetime is inferred any more, so nothing about one can surprise.
 
 ### E20 — Strict dispatch: the cursor moves only by matching at it
+**`resolved` 2026-11-24: what it lists as remaining, the E18 original-order fixture question, E18
+records as closed by ruling on 2026-08-21.** Before that:
 **`in progress` — core implemented 2026-08-21: modes strict/lax/classify/lexer live, `consume`
 and `emit-error` live, zero-advance errors, version-gated defaults (v4+ strict), validation
 and lints; `StrictDispatchTest` covers it behaviourally. Update, same day: `any` implemented
@@ -1186,7 +1200,10 @@ rule, and phase 3 moves the migration onto it. D41 accepts configuration tweaks 
 Stroom's whitespace; here none would suffice, and the serialiser is the honest place.
 
 ### E36 — A binary vocabulary: framing, integer fields, slicing, and a byte-writing element
-**`open` 2026-09-04.** Design 25 (D43) makes a captured value carry its encoding, so a `raw`
+**`open` 2026-09-04, and in part done: reviewed 2026-11-24.** Framing and integer fields are built —
+a match sequence's `take`, `read` and `seek` with a declared width and endianness (designs 38 and
+39), which read real Avro and protobuf. The element that writes bytes is not, and slicing a value
+already captured by offset and length was not looked for. Design 25 (D43) makes a captured value carry its encoding, so a `raw`
 capture written to a `raw` sink is the bytes it matched and a binary payload passes through
 untouched. That is the carrier. What genuinely binary data — a JPEG was the example — needs
 beyond it, and DS3 cannot do at all, is vocabulary: a match step that takes N bytes where N is
@@ -1379,7 +1396,7 @@ cannot happen, this is a free deletion and not a behaviour decision at all. Eith
 fixture with malformed input, since nothing in the corpus distinguishes the two behaviours.
 
 ### E47 — A `matches` condition allocates a matcher per evaluation
-**`open` 2026-09-10, found auditing E45's fix.** `Conditions` calls
+**`open`, still so 2026-11-24 (`Conditions.evaluateRare`). 2026-09-10, found auditing E45's fix.** `Conditions` calls
 `value.pattern().matcher()` on every evaluation, and `BytePattern.matcher()` is
 `new ByteMatcher(this)`. So a `matches` test allocates a matcher per record — 624 per operation
 on `apache_httpd`, the same order as the `String` and array that E45 just removed from the very
@@ -1398,7 +1415,8 @@ allocation: keeping them apart keeps the reason each was done legible, and this 
 count first (§7's rule) since 624 per operation on one workload may well measure at nothing.
 
 ### E46 — `and` and `or` allocate a stream and a capturing lambda per evaluation
-**`open` 2026-09-10, found auditing design 30 phase 6.** `Conditions.evaluate` runs its `and` and
+**`resolved`, seen 2026-11-24: both are loops over the node's own children (`Conditions.evaluate`),
+and both still short-circuit. Not measured here. `open` 2026-09-10, found auditing design 30 phase 6.** `Conditions.evaluate` runs its `and` and
 `or` arms through `Stream.allMatch` and `anyMatch` over a lambda capturing the match, the match
 count and the registry, so each evaluation of a composite condition allocates. A plain loop over
 the list would not, and short-circuiting is the same either way.
@@ -1665,7 +1683,8 @@ Profiles: `design/benchmarks/ph4-conditions-stack-apache-lines8.txt`. Design:
 `design/30-references-not-names.md`.
 
 ### E50 — The step output buffer cost 4% and nobody knows why
-**`open` 2026-09-12.** Design 34 replaced the step interpreter's two output lists with one buffer.
+**`superseded` 2026-11-24: the step interpreter it changed was retired by design 38 (phase 4), so
+there is no code to explain it in. `open` from 2026-09-12.** Design 34 replaced the step interpreter's two output lists with one buffer.
 It measured **worse**, twice, and the one mechanism that explained it was probed and refuted. The
 code is reverted; this entry exists so the change can be inspected on its own.
 

@@ -70,6 +70,16 @@ public final class Shapeshifter {
         return Compiler.compile(project, registry, source);
     }
 
+    /// Whether a configuration writes text rather than XML events (design 24), asked without
+    /// compiling it: for whoever has to know before there is any input to compile it for.
+    ///
+    /// @param project The configuration.
+    /// @return Whether some template writes text or a value, and none writes an element, an
+    ///         attribute or a namespace. A configuration that writes nothing writes no text.
+    public static boolean writesText(final Project project) {
+        return Compiler.writesText(project);
+    }
+
     /**
      * Run a configuration over a stream in a mode, with the services its functions may reach
      * (design 26 §3–4). {@link RunMode#PREVIEW} does not call impure functions. Memory stays

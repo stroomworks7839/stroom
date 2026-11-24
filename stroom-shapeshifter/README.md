@@ -4,8 +4,13 @@ A byte-level parsing and transformation engine.
 
 ## Status
 
-A first working slice of the matching engine exists: patterns compile to a byte-level scan
-plan and match against `byte[]` with zero-copy capture groups.
+The matching library, the transformation engine over it, the pipeline parser and filter elements
+and the document editor are built; nothing has been released. Not built: the editor inside
+Stroom's stepping (design 43 §6), and native readers for JSON, Parquet, XML and the rest (design
+42). What is open in each module is in its `ISSUES.md`.
+
+The matching library comes first below: patterns compile to a byte-level scan plan and match
+against `byte[]` with zero-copy capture groups.
 
 ```java
 final BytePattern pattern = BytePattern.compile("^([^,]+),(\\d+)$");

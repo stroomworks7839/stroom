@@ -145,6 +145,7 @@ public class ShapeshifterFilter extends AbstractXMLFilter implements SupportsCod
             final StoredParserFactory stored = poolItem.getValue();
             final StoredErrorReceiver storedErrorReceiver = stored.getErrorReceiver();
             if (storedErrorReceiver.getTotalErrors() == 0 && stored.getParserFactory() != null) {
+                TextTargets.check(getElementId(), stored.getParserFactory(), getFilter());
                 factory = stored.getParserFactory();
             } else {
                 storedErrorReceiver.replay(new ErrorReceiverIdDecorator(getElementId(), errorReceiverProxy));

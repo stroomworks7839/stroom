@@ -18,6 +18,7 @@ package stroom.shapeshifter.pipeline;
 
 import stroom.pipeline.xml.converter.ParserFactory;
 import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.function.FunctionRegistry;
 
 import org.xml.sax.XMLReader;
@@ -41,6 +42,14 @@ public class ShapeshifterParserFactory implements ParserFactory {
     /** Compile against the functions the configuration may call (design 26). */
     public ShapeshifterParserFactory(final Project project, final FunctionRegistry registry) {
         this.compiled = new CompiledProjects(project, registry);
+    }
+
+    /// Whether the configuration writes text rather than XML events (design 24): asked as
+    /// processing starts, before there is any input to compile it for.
+    ///
+    /// @return Whether it writes text, and no structure at all. One that writes nothing is neither.
+    boolean writesText() {
+        return Shapeshifter.writesText(compiled.project());
     }
 
     /**

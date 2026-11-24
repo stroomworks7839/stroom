@@ -18,6 +18,7 @@ package stroom.shapeshifter.engine.compile;
 
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 
 import java.util.List;
@@ -42,6 +43,9 @@ final class StructureCheck {
     /** Whether the walk met an element, attribute or namespace anywhere, containers included. */
     private boolean structured;
 
+    /** Whether the walk met text or a value written anywhere but into a variable. */
+    private boolean wrote;
+
     private StructureCheck(final String templateName) {
         this.templateName = templateName;
     }
@@ -57,6 +61,30 @@ final class StructureCheck {
         final StructureCheck check = new StructureCheck(template.name());
         check.body(template.body(), Enclosing.NONE, null, false);
         return check.structured;
+    }
+
+    /// Whether a configuration writes text, without compiling it: the same walk, over every
+    /// template. A body the walk refuses has structure in it, since the refusals are all made
+    /// inside an element or an attribute; saying what is wrong with it is compiling's.
+    ///
+    /// @param project The configuration.
+    /// @return Whether some template writes text or a value, and none writes an element, an
+    ///         attribute or a namespace. A configuration that writes nothing writes no text.
+    static boolean writesText(final Project project) {
+        boolean wrote = false;
+        for (final Template template : project.templates()) {
+            final StructureCheck check = new StructureCheck(template.name());
+            try {
+                check.body(template.body(), Enclosing.NONE, null, false);
+            } catch (final ConfigException e) {
+                return false;
+            }
+            if (check.structured) {
+                return false;
+            }
+            wrote |= check.wrote;
+        }
+        return wrote;
     }
 
     /**
@@ -93,7 +121,11 @@ final class StructureCheck {
                     refuseAfterContent(within, name, contentSeen, "namespace '" + value.prefix() + "'");
                 }
                 // A variable's body writes to its own buffer: a document of its own.
-                case OutputNode.Variable value -> body(value.body(), Enclosing.NONE, null, false);
+                case OutputNode.Variable value -> {
+                    final boolean wroteBefore = wrote;
+                    body(value.body(), Enclosing.NONE, null, false);
+                    wrote = wroteBefore;
+                }
                 case OutputNode.Holder holder -> {
                     // A container's bodies pass through in written order, with the content seen.
                     for (final List<OutputNode> nested : holder.bodies()) {
@@ -101,9 +133,18 @@ final class StructureCheck {
                     }
                 }
                 // A binding writes only when it binds nothing; the leaves that write are named.
-                case OutputNode.Binding binding -> contentSeen |= !binding.binds();
-                case OutputNode.Text ignored -> contentSeen = true;
-                case OutputNode.ValueOf ignored -> contentSeen = true;
+                case OutputNode.Binding binding -> {
+                    contentSeen |= !binding.binds();
+                    wrote |= !binding.binds();
+                }
+                case OutputNode.Text ignored -> {
+                    contentSeen = true;
+                    wrote = true;
+                }
+                case OutputNode.ValueOf ignored -> {
+                    contentSeen = true;
+                    wrote = true;
+                }
                 case OutputNode.ApplyTemplates ignored -> contentSeen = true;
                 case OutputNode.CallTemplate ignored -> contentSeen = true;
                 case OutputNode.EmitError ignored -> {

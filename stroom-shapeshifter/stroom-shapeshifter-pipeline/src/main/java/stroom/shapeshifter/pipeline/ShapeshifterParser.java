@@ -132,6 +132,7 @@ public class ShapeshifterParser extends AbstractParser implements SupportsCodeIn
         final ParserFactory parserFactory = stored.getParserFactory();
 
         if (storedErrorReceiver.getTotalErrors() == 0 && parserFactory != null) {
+            TextTargets.check(getElementId(), parserFactory, getFilter());
             final XMLReader reader = parserFactory.getParser();
             if (reader instanceof ShapeshifterReader shapeshifter) {
                 // Design 26: what this document's functions may reach — the element's holders.

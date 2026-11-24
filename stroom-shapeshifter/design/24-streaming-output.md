@@ -150,7 +150,14 @@ writer role) is refused by name. The design's worry about chains does not apply,
 things that sit between a parser and a writer — `SplitFilter`, `RecordCountFilter`,
 `XSLTFilter`, `SchemaFilter` — are all element-shaped machinery that has no meaning over
 text; a text configuration has nothing to say to any of them, so "straight into a writer" is
-not a restriction on anything sensible. Held for the user. **One defect, fixed:** a downstream
+not a restriction on anything sensible. Held for the user, and **ruled and
+built 2026-11-24: refused by name.** `TextTargets.check`, which both elements run as processing
+starts, over the model's own answer (`Shapeshifter.writesText`), so nothing is compiled for
+it. A configuration that writes nothing, as a new document's does, is not a text one and may feed
+anything. Every immediate target is judged, and an element with none feeds nothing. Stepping puts
+a split and its recorders after a parser; those are looked through, the split told from an
+author's by having no id, and an author's is refused, since it drops text (`TestTextTargets`,
+`TestStructureCheck`). **One defect, fixed:** a downstream
 that refused the *end* of a text document threw through `parse`, carrying the engine's
 messages away unreported, while a refusal mid-run becomes the engine's own FATAL message and
 the messages survive. The end's refusal is now the run's last message in the same words;

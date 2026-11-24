@@ -145,7 +145,7 @@ Re-checked against the working tree, not carried over on trust:
 - [resolved 2026-08-24] Gate harmonisation: landed as one designed change — see "R1 lands" below for what the benchmark gate caught on the way in.
 - [pending] Template.RegexFlags is still nested in Template (med).
 - [pending] RefExpression.MatchIndex is still a four-way union flattened into flag fields (med, model+codec surgery).
-- [pending] Compiler still lacks the shared charsetFor(Encoding) extraction (med).
+- [resolved, seen 2026-11-24] Compiler: the source's and a template's encodings are each resolved in one place, `encoding` and `declaredEncoding`, and the duplicated ternary is gone (med).
 - [resolved 2026-09-06] The "__rec_" prefix is one literal on ApplyDirective since design 27; D48 kept it as the recursive form's spelling (low).
 - [pending] The remaining low-severity nits listed per package below needed a confirmation pass — delivered 2026-08-22; see "The confirmation pass" section for the verdicts.
 
@@ -170,14 +170,15 @@ idea was not pursued).
 
 **Still open — engine module:**
 
-- [pending] Template.RegexFlags nested in Template, which never uses it; hoist (med).
-- [pending] RefExpression.MatchIndex flattens a four-way union into flag fields against the
-  package's sealed idiom (med, model+codec surgery).
-- [pending] Compiler: extract the shared charsetFor(Encoding) resolution; the duplicated
-  ternary appears twice in compile() (med).
+- [pending, rechecked 2026-11-24] Template.RegexFlags nested in Template, which never uses it;
+  hoist (med).
+- [pending, rechecked 2026-11-24: five-way now, with `counter`] RefExpression.MatchIndex flattens
+  a four-way union into flag fields against the package's sealed idiom (med, model+codec surgery).
+- [resolved, seen 2026-11-24] Compiler: extract the shared charsetFor(Encoding) resolution; the
+  duplicated ternary is gone from compile() (med).
 - [resolved 2026-09-06] The "__rec_" synthetic-mode prefix — one constant on ApplyDirective
   since design 27 (low).
-- [pending] Strict-level line-anchor lint misses the root level when no document template
+- [pending, rechecked 2026-11-24] Strict-level line-anchor lint misses the root level when no document template
   exists (low).
 - [decision] Lax-level unanchored eater consumes a searched-past prefix with no skip report —
   report, or extend the licence comment (low, D34-adjacent; the owner's call when it next

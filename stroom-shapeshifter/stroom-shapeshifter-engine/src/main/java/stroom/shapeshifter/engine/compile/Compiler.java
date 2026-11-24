@@ -85,6 +85,16 @@ public final class Compiler {
         return compile(project, registry, declared == Encoding.AUTO ? Encoding.UTF_8 : declared);
     }
 
+    /// Whether a configuration writes text rather than XML events, asked of the model without
+    /// compiling it, which no reading of the input changes.
+    ///
+    /// @param project The configuration.
+    /// @return Whether some template writes text or a value, and none writes an element, an
+    ///         attribute or a namespace.
+    public static boolean writesText(final Project project) {
+        return StructureCheck.writesText(project);
+    }
+
     /**
      * Compile a configuration <b>for a reading</b> (design 32).
      *
