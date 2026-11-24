@@ -49,8 +49,12 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
 
     private final DelayedUpdate parseSource;
     private final ToolbarButton runButton;
+    private final ToolbarButton undoButton;
+    private final ToolbarButton redoButton;
 
     private String lastRead;
+    // What the text read prints as, or null where what is kept is not what was read
+    private String printedRead;
     private String text;
     private Project project;
     private String sourceError;
@@ -85,11 +89,19 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
                 this::run);
         runButton.setEnabled(false);
 
+        // Undo and redo are the document's too (design 49): the workbench and the sample page each
+        // take the place of the Design tab's own bars. They are the Design tab's all the same,
+        // since the Source tab's text has its own.
+        undoButton = view.getToolbar().button(SvgImage.UNDO, "Undo (Ctrl+Z)", "Undo", () -> design.undo());
+        redoButton = view.getToolbar().button(SvgImage.REDO, "Redo (Ctrl+Shift+Z)", "Redo", () -> design.redo());
+        updateHistory();
+
         addTab(DESIGN,
                 () -> {
                     design = designProvider.get();
                     own(design.addChangeListener(this::onDesignEdit));
                     design.setOnCanRunChange(runButton::setEnabled);
+                    design.setOnHistoryChange(this::updateHistory);
                     return design;
                 },
                 (content, docRef, document) -> {
@@ -101,7 +113,7 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
                 // make the document dirty, so what is remembered is where the author was when
                 // they last saved for a reason of their own.
                 (content, document) -> document.copy()
-                        .data(text)
+                        .data(data())
                         .colours(content.getColours())
                         .sample(content.getSampleLocation())
                         .sampleText(content.getSampleText())
@@ -127,7 +139,7 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
                         syncing = false;
                     }
                 },
-                (content, document) -> document.copy().data(text).build());
+                (content, document) -> document.copy().data(data()).build());
 
         addDocumentationTab(DOCUMENTATION,
                 documentationProvider,
@@ -135,6 +147,22 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
                 (document, description) -> document.copy().description(description).build());
         addPermissionsTab(PERMISSIONS, permissionsProvider);
         setDefaultTab(DESIGN);
+    }
+
+    private void updateHistory() {
+        final boolean shown = design != null && DESIGN.equals(getSelectedTab());
+        undoButton.setEnabled(shown && design.canUndo());
+        redoButton.setEnabled(shown && design.canRedo());
+    }
+
+    @Override
+    protected void afterSelectTab(final TabData tab) {
+        super.afterSelectTab(tab);
+        // What was typed is in the project before anything is done on another tab, an undo included
+        if (!SOURCE.equals(tab)) {
+            parseSource.flush();
+        }
+        updateHistory();
     }
 
     // Run is in the document's toolbar, so it can be pressed from the Source tab; the run is only
@@ -154,6 +182,8 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
         final String read = data == null
                 ? ""
                 : data;
+        // Typed and then saved, what is read is what was typed: an edit, not another document
+        parseSource.flush();
         if (read.equals(lastRead) && (project != null || sourceError != null)) {
             return;
         }
@@ -165,9 +195,25 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
             // sure the project has its document template (design 44 §5m). Not in the parser: a
             // parser that added a template would stop round-tripping, and would put one back
             // into the workbench's deliberately one-template sample experiment.
+            final Project parsed = project;
             project = Templates.ensureDocument(project);
             text = ProjectText.print(project);
+            printedRead = project.equals(parsed) && !read.trim().isEmpty()
+                    ? text
+                    : null;
+        } else {
+            printedRead = null;
         }
+    }
+
+    // What the document keeps: the project as it was read, to the letter, while it is that project.
+    // The text is the printed form, which the store's is not, so an edit undone (design 49) would
+    // otherwise leave the document dirty with nothing to save. A project read without its document
+    // template is another one once it has it.
+    private String data() {
+        return text != null && text.equals(printedRead)
+                ? lastRead
+                : text;
     }
 
     private void parse() {
@@ -208,9 +254,9 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
         if (design != null) {
             // A text that no longer parses keeps the previous project on the Design tab, read-only,
             // under the banner; one that parses again replaces it.
-            design.read(sourceError == null
+            design.readSource(sourceError == null
                     ? project
-                    : null, null, null, null, null, sourceError);
+                    : null, sourceError);
         }
         if (had != (sourceError == null)) {
             onChange();

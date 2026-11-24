@@ -216,9 +216,7 @@ public class TemplateStripController extends Controller {
     /// @param mode The mode.
     public void setMode(final String mode) {
         if (templateId != null || !Objects.equals(mode, this.mode)) {
-            bodyPresenter.leave();
-            leaveTitle();
-            leaveMatch();
+            leave();
             view.scrollToTop();
         }
         this.templateId = null;
@@ -309,9 +307,7 @@ public class TemplateStripController extends Controller {
             // The body is about to show something else, or nothing: a card left open in it is
             // taken or let go here, since the body is not told when it goes off screen. And so
             // is a title being edited.
-            bodyPresenter.leave();
-            leaveTitle();
-            leaveMatch();
+            leave();
             view.scrollToTop();
         }
         this.mode = null;
@@ -358,6 +354,43 @@ public class TemplateStripController extends Controller {
         declarations.setTemplate(id);
         captures.setTemplate(id);
         view.setDetailsVisible(true);
+    }
+
+    /// What is open is taken if it can be written as it stands and let go if it cannot, a card, a
+    /// title and the match line alike, as when the selection moves on: a moment later, for the
+    /// reason [BodyController#leave()] gives.
+    public void leave() {
+        bodyPresenter.leave();
+        leaveTitle();
+        leaveMatch();
+    }
+
+    /// @return Whether a card, a title or the match line is open with something in it that is not
+    ///         in the project.
+    public boolean isTyped() {
+        return bodyPresenter.isTyped() || isTitleTyped() || isMatchTyped();
+    }
+
+    private boolean isTitleTyped() {
+        if (!view.isNameOpen()) {
+            return false;
+        }
+        if (mode != null) {
+            return !view.getNameText().trim().equals(mode);
+        }
+        final Template template = host.template(templateId);
+        if (template == null || !settingsOpen) {
+            return false;
+        }
+        final Template written = settings.write(template, view.getNameText(), true);
+        return written == null || !written.equals(template)
+               || !Objects.equals(settings.getColour(), overrideOf(template.id()));
+    }
+
+    private boolean isMatchTyped() {
+        final Template template = host.template(templateId);
+        return view.isMatchOpen() && template != null
+               && !template.match().equals(view.getMatchLine().toMatch(template.match()));
     }
 
     public void setHot(final Hot hot) {
@@ -458,20 +491,8 @@ public class TemplateStripController extends Controller {
         }
         final boolean chain = entered && fresh;
         if (mode != null) {
-            final String from = mode;
-            final String name = view.getNameText().trim();
-            final String whyNot = Modes.whyNotName(name);
-            if (whyNot != null) {
-                AlertEvent.fireWarn(this, whyNot, null);
+            if (!takeModeName()) {
                 return;
-            }
-            if (!name.equals(from) && host.modes().contains(name)) {
-                AlertEvent.fireWarn(this, "There is already a mode named '" + name + "'", null);
-                return;
-            }
-            closeTitle();
-            if (!name.equals(from)) {
-                onRenameMode.accept(from, name);
             }
             if (chain) {
                 view.getTemplates().focusAdd();
@@ -500,6 +521,32 @@ public class TemplateStripController extends Controller {
         } else {
             view.focusName();
         }
+    }
+
+    /// Takes the mode's name, if one is being typed: before an undo, which would otherwise let it
+    /// go ([#leave()]).
+    ///
+    /// @return False where it cannot be, which has been said: it is still open.
+    public boolean takeModeName() {
+        if (mode == null || !view.isNameOpen() || readOnly) {
+            return true;
+        }
+        final String from = mode;
+        final String name = view.getNameText().trim();
+        final String whyNot = Modes.whyNotName(name);
+        if (whyNot != null) {
+            AlertEvent.fireWarn(this, whyNot, null);
+            return false;
+        }
+        if (!name.equals(from) && host.modes().contains(name)) {
+            AlertEvent.fireWarn(this, "There is already a mode named '" + name + "'", null);
+            return false;
+        }
+        closeTitle();
+        if (!name.equals(from)) {
+            onRenameMode.accept(from, name);
+        }
+        return true;
     }
 
     // Escape, or Cancel: what is named is as it was — which, for one just made, is the name it

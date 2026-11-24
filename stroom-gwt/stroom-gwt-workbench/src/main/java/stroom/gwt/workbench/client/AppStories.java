@@ -155,6 +155,7 @@ import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterPaneStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterSplitStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterTemplateStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterTreeStories;
+import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterUndoStories;
 import stroom.gwt.workbench.client.app.vis.ChartVisStories;
 import stroom.gwt.workbench.client.app.vis.MapVisStories;
 import stroom.gwt.workbench.client.app.vis.NetworkVisStories;
@@ -430,6 +431,7 @@ public final class AppStories {
         ShapeshifterLexerStories.addTo(registry);
         ShapeshifterClassifyStories.addTo(registry);
         ShapeshifterConceptStories.addTo(registry);
+        ShapeshifterUndoStories.addTo(registry);
         ShapeshifterLongSampleStories.addTo(registry);
         // App/Security/DocumentPermissionsTab
         DocumentPermissionsTabStories.addTo(registry);

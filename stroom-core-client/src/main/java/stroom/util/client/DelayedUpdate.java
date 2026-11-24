@@ -20,6 +20,7 @@ import com.google.gwt.user.client.Timer;
 
 public class DelayedUpdate {
     private final int delay;
+    private final Runnable runnable;
     private final Timer timer;
 
     public DelayedUpdate(final Runnable runnable) {
@@ -28,6 +29,7 @@ public class DelayedUpdate {
 
     public DelayedUpdate(final int delay, final Runnable runnable) {
         this.delay = delay;
+        this.runnable = runnable;
         timer = new Timer() {
             @Override
             public void run() {
@@ -38,6 +40,14 @@ public class DelayedUpdate {
 
     public void reset() {
         timer.cancel();
+    }
+
+    /// Runs the update now if it is waiting to be run, and does nothing if it is not.
+    public void flush() {
+        if (timer.isRunning()) {
+            timer.cancel();
+            runnable.run();
+        }
     }
 
     public void update() {

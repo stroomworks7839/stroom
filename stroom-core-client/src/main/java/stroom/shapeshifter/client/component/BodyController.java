@@ -617,6 +617,18 @@ public class BodyController extends Controller {
         }
     }
 
+    /// @return Whether a card is open with something in it that is not in the project.
+    public boolean isTyped() {
+        if (editing == null) {
+            return false;
+        }
+        if (editing.isAuto()) {
+            return !editing.getLine().isEmpty();
+        }
+        final OutputNode written = editing.writeQuietly();
+        return written == null || !written.equals(editing.getOriginal());
+    }
+
     // What the body would be with the draft taken as it stands, or null where it cannot be
     // written, would drop what a holder holds, or changes nothing.
     private List<OutputNode> left() {

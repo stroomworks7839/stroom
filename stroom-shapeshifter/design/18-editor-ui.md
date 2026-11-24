@@ -771,8 +771,8 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   the owner's observation that pattern editing is, in this respect, no different from editing
   a template inline. The one thing this defers rather than answers is regret: there is
   no per-field Cancel here the way body-card edits have (§5.6's body editor), so a
-  genuine mistake needs a **global undo** to be recoverable — which this design does
-  not yet have (the prototype did; see Q10).
+  genuine mistake needs a **global undo** to be recoverable — which this design did
+  not have (the prototype did; see Q10) until design 49, built 2026-11-24.
 
   Its layout is regex101's, adapted: the editable **sample** on the left (seeded from
   the current frame's content, freely editable to experiment) with the live match
@@ -2057,7 +2057,7 @@ lands rather than only recorded here.
 | Q7 | Does Phase C replace the generic stepping panes, or add a fifth "Trace" pane? | **Replace** — the frame navigator subsumes Input/Output; keep Log. |
 | Q8 | Content renderer depth: direct children only, or all descendants nested? | **All descendants**, direct children prominent, deeper levels quieter — the survey view at the root frame needs it. |
 | Q9 | Windowing/minimap for large content values — in scope for B? | **Defer**; window around the current position first. |
-| Q10 | Global undo/redo — the only answer to "I made a mistake" now that the workbench, guard/limits and body cards commit live. In scope for B? | **Yes, in B.** A live-editing surface with no undo anywhere is a regression from the prototype's snapshot history, not a simplification. |
+| Q10 | Global undo/redo — the only answer to "I made a mistake" now that the workbench, guard/limits and body cards commit live. In scope for B? | **Yes, in B.** A live-editing surface with no undo anywhere is a regression from the prototype's snapshot history, not a simplification. **Built 2026-11-24** (design 49). |
 
 **Second round, ruled 2026-08-28** — from a pass over accessibility and the editing
 mechanics:

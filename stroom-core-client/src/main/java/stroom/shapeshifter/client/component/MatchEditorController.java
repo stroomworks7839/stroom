@@ -101,6 +101,11 @@ public class MatchEditorController extends Controller {
         regexForm.setOnExplode(() -> convert(MatchKind.TREE));
     }
 
+    /// Takes what has been typed into the regex and not committed yet.
+    public void flush() {
+        regexForm.flush();
+    }
+
     /// Told the group the regex map isolates, [RegexController#NO_GROUP] for none.
     public void setOnGroupSelect(final IntConsumer onGroupSelect) {
         regexForm.setOnGroupSelect(onGroupSelect);

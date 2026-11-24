@@ -184,6 +184,13 @@ public class RegexController
         commit.update();
     }
 
+    /// Takes what has been typed now rather than when the pause after it is over: before an undo,
+    /// which would otherwise be followed by it. With nothing typed there is nothing to take: what
+    /// the form shows may be a template that was left, and has changed since.
+    public void flush() {
+        commit.flush();
+    }
+
     public void onExplode() {
         commit.reset();
         commit();

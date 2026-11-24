@@ -22,6 +22,8 @@ import stroom.pipeline.shared.SourceLocation;
 import stroom.shapeshifter.client.model.Hot;
 import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.client.model.Patterns;
+import stroom.shapeshifter.client.model.ProjectChange;
+import stroom.shapeshifter.client.model.ProjectHistory;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.ProjectText;
 import stroom.shapeshifter.client.model.SampleSource;
@@ -39,8 +41,12 @@ import stroom.widget.component.client.ContextValue;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.component.client.Listeners;
+import stroom.widget.util.client.ContentFocus;
 
+import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.user.client.History;
@@ -56,6 +62,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 
 /// The Design tab's root (design 43 §4): owns the [Project], the selection, and the one
 /// place an edit lands. Every child edits through [ProjectHost#replace]; the root re-renders
@@ -105,6 +112,11 @@ public class ShapeshifterDesignController
     private Project project;
     private final Map<String, String> colours = new HashMap<>();
     private final Set<String> declaredModes = new LinkedHashSet<>();
+    private final ProjectHistory edits = new ProjectHistory();
+    // Whether the event being handled has recorded a step already
+    private boolean recorded;
+    private Runnable onHistoryChange = () -> {
+    };
     private String sourceError;
     private boolean readOnly = true;
     // What this controller adds to it: a source that does not parse can be read, not
@@ -250,6 +262,7 @@ public class ShapeshifterDesignController
             if (project != null) {
                 refresh();
             }
+            onHistoryChange.run();
         });
 
     }
@@ -365,16 +378,41 @@ public class ShapeshifterDesignController
         }
     }
 
-    /// The tab's keys (design 18 §5.3, §5.7): Ctrl+Enter runs; Alt+←/→ walk the history - the
-    /// browser's, now, so the keys and its own back button are one thing; Alt+Shift+←/→ step the
-    /// cursor's template across the whole input, Ctrl+Alt+←/→ among its siblings, Alt+↑ to the
-    /// parent, Alt+↓ to the first child. A card with focus keeps its own Alt+arrows (they stop
-    /// there).
+    // Whether the keyboard is in a field that takes text
+    private static boolean isTyping() {
+        final Element active = ContentFocus.activeElement();
+        if (active == null) {
+            return false;
+        }
+        final String type = active.getAttribute("type");
+        return "textarea".equalsIgnoreCase(active.getTagName())
+               || "true".equals(active.getAttribute("contenteditable"))
+               || "input".equalsIgnoreCase(active.getTagName())
+                  && !"checkbox".equalsIgnoreCase(type) && !"radio".equalsIgnoreCase(type);
+    }
+
+    /// The tab's keys (design 18 §5.3, §5.7): Ctrl+Enter runs; Ctrl+Z undoes, and Ctrl+Shift+Z or
+    /// Ctrl+Y redoes, but in a field, where they are the field's own (design 49); Alt+←/→ walk the
+    /// history - the browser's, now, so the keys and its own back button are one thing;
+    /// Alt+Shift+←/→ step the cursor's template across the whole input, Ctrl+Alt+←/→ among its
+    /// siblings, Alt+↑ to the parent, Alt+↓ to the first child. A card with focus keeps its own
+    /// Alt+arrows (they stop there).
     private void onKey(final KeyDownEvent event) {
         final int key = event.getNativeKeyCode();
         if (key == KeyCodes.KEY_ENTER && event.isControlKeyDown()) {
             event.preventDefault();
             runAndShow();
+            return;
+        }
+        if ((event.isControlKeyDown() || event.isMetaKeyDown()) && (key == KeyCodes.KEY_Z || key == KeyCodes.KEY_Y)
+            && !isTyping()) {
+            // In a field they are the browser's own, of what is typed there
+            event.preventDefault();
+            if (key == KeyCodes.KEY_Y || event.isShiftKeyDown()) {
+                redo();
+            } else {
+                undo();
+            }
             return;
         }
         if (key == KeyCodes.KEY_ESCAPE && workbenchOpen) {
@@ -448,6 +486,30 @@ public class ShapeshifterDesignController
     /// error keeps the previous project on screen, read-only, under the error.
     public void read(final Project project, final Map<String, String> colours, final SourceLocation sample,
                      final String sampleText, final SampleKind sampleKind, final String sourceError) {
+        // What is undone is what was done to the document as it was shown. Read again after a save
+        // it is what is shown already, and the history goes on past it
+        if (this.project != null && (!this.project.equals(project)
+                                     || !getColours().equals(Objects.requireNonNullElse(colours, Map.of())))) {
+            edits.clear();
+            onHistoryChange.run();
+        }
+        show(project, colours, sample, sampleText, sampleKind, sourceError);
+    }
+
+    /// The project as the Source tab's text has it: an edit of this document, where [#read] is
+    /// another reading of it.
+    ///
+    /// @param project The project, or null where the text does not parse.
+    /// @param sourceError Why it does not, or null where it does.
+    public void readSource(final Project project, final String sourceError) {
+        if (project != null && this.project != null && !project.equals(this.project)) {
+            record(state(), ProjectHistory.SOURCE);
+        }
+        show(project, null, null, null, null, sourceError);
+    }
+
+    private void show(final Project project, final Map<String, String> colours, final SourceLocation sample,
+                      final String sampleText, final SampleKind sampleKind, final String sourceError) {
         this.sourceError = sourceError;
         sourceReadOnly.set(sourceError != null);
         if (project != null) {
@@ -598,6 +660,7 @@ public class ShapeshifterDesignController
         if (readOnly || templateId == null) {
             return;
         }
+        final ProjectHistory.State left = state();
         final String before = colours.get(templateId);
         if (Objects.equals(before, colour)) {
             return;
@@ -607,6 +670,7 @@ public class ShapeshifterDesignController
         } else {
             colours.put(templateId, colour);
         }
+        record(left, null);
         refresh();
         // The document is dirty for it; the project is unchanged, and the run never stale for a colour.
         changeListeners.fire(project);
@@ -617,11 +681,168 @@ public class ShapeshifterDesignController
         if (next == null || readOnly) {
             return;
         }
+        replace(next, state());
+    }
+
+    // Left where the author was: for an edit that moves the selection before it is made
+    private void replace(final Project next, final ProjectHistory.State left) {
+        if (readOnly) {
+            return;
+        }
+        if (project != null && !next.equals(project)) {
+            record(left, ProjectChange.typedInto(project, next));
+        }
         project = next;
         declaredModes.removeAll(Modes.of(next));
         refresh();
         changeListeners.fire(next);
         check();
+    }
+
+    // ---- undo and redo (design 49) ----
+
+    private ProjectHistory.State state() {
+        return new ProjectHistory.State(project, colours, declaredModes, templatePanel.getSelectedTemplateId());
+    }
+
+    // One action of the author's is one step, however many edits it makes: they are all made
+    // before the browser is done with the event.
+    private void record(final ProjectHistory.State left, final String subject) {
+        edits.record(left, subject, recorded, Duration.currentTimeMillis());
+        if (!recorded) {
+            recorded = true;
+            Scheduler.get().scheduleDeferred(() -> recorded = false);
+        }
+        onHistoryChange.run();
+    }
+
+    /// @param onHistoryChange Told when whether there is anything to undo or redo may have changed.
+    public void setOnHistoryChange(final Runnable onHistoryChange) {
+        this.onHistoryChange = onHistoryChange;
+    }
+
+    /// @return Whether there is an edit to undo, and the project can be changed.
+    public boolean canUndo() {
+        return !readOnly && edits.canUndo();
+    }
+
+    /// @return Whether there is an undo to undo, and the project can be changed.
+    public boolean canRedo() {
+        return !readOnly && edits.canRedo();
+    }
+
+    /// Puts the project back as it was before the last edit. What is open is taken first, so that
+    /// nothing typed is lost: it is the edit undone, and a redo has it back.
+    ///
+    /// The name of a mode or a part is taken rather than left, since leaving lets it go; one that
+    /// cannot be taken is said, and nothing is undone.
+    public void undo() {
+        if (readOnly || project == null) {
+            return;
+        }
+        final boolean focused = view.hasFocus();
+        if (!strip.takeModeName() || !workbench.takePartName()) {
+            return;
+        }
+        strip.leave();
+        workbench.flush();
+        step(edits::undo, true, focused);
+    }
+
+    /// Puts back what the last undo took away. What is open is not taken, since an edit leaves
+    /// nothing to redo: with something typed in it it stays open, where it is, and where the redo
+    /// would change what it is open on that is said instead.
+    public void redo() {
+        if (readOnly || project == null) {
+            return;
+        }
+        // Typing not committed yet is an edit already made
+        workbench.flush();
+        final ProjectHistory.State next = edits.next();
+        if (next == null) {
+            return;
+        }
+        final boolean typed = strip.isTyped() || workbench.isTyped();
+        if (typed && !keepsSelected(next)) {
+            AlertEvent.fireWarn(this, "The redo would change what is open here. Take it or cancel it first.", null);
+            return;
+        }
+        final boolean focused = view.hasFocus();
+        if (!typed) {
+            strip.leave();
+        }
+        step(edits::redo, !typed, focused);
+    }
+
+    // Whether what is selected, and so what is open, is the same in another state
+    private boolean keepsSelected(final ProjectHistory.State state) {
+        final String rowId = templatePanel.getSelectedTemplateId();
+        final String part = Patterns.nameOf(rowId);
+        if (part != null) {
+            return Objects.equals(project.patterns().get(part), state.project().patterns().get(part));
+        }
+        final String mode = TemplatePanelController.modeOf(rowId);
+        if (mode != null) {
+            return Modes.of(state.project()).contains(mode) || state.declaredModes().contains(mode);
+        }
+        for (final Template template : state.project().templates()) {
+            if (template.id().equals(rowId)) {
+                return template.equals(template(rowId));
+            }
+        }
+        return template(rowId) == null;
+    }
+
+    private void step(final UnaryOperator<ProjectHistory.State> to, final boolean follow, final boolean focused) {
+        // After what was left open has been taken, which is put off until then
+        Scheduler.get().scheduleDeferred(() -> {
+            final ProjectHistory.State next = readOnly
+                    ? null
+                    : to.apply(state());
+            if (next != null) {
+                show(next, follow);
+            }
+            if (focused) {
+                view.keepFocus();
+            }
+        });
+    }
+
+    // Selects what is different, so that it is on screen, or else what was selected then. A mode
+    // that was selected then and is there again is what is different, whatever it changed.
+    private void show(final ProjectHistory.State state, final boolean follow) {
+        recorded = false;
+        final Project from = project;
+        final boolean wasRow = isRow(state.selected());
+        project = state.project();
+        colours.clear();
+        colours.putAll(state.colours());
+        declaredModes.clear();
+        declaredModes.addAll(state.declaredModes());
+        final String changed = ProjectChange.row(from, project, TemplatePanelController.settingsRowId());
+        final boolean modeIsBack = !wasRow && TemplatePanelController.modeOf(state.selected()) != null;
+        if (follow && changed != null && !(modeIsBack && isRow(state.selected()))) {
+            templatePanel.follow(changed);
+        } else if (follow && isRow(state.selected())) {
+            templatePanel.follow(state.selected());
+        }
+        refresh();
+        changeListeners.fire(project);
+        if (!project.equals(from)) {
+            check();
+        }
+        onHistoryChange.run();
+    }
+
+    private boolean isRow(final String rowId) {
+        final String part = Patterns.nameOf(rowId);
+        final String mode = TemplatePanelController.modeOf(rowId);
+        return rowId == null
+               || TemplatePanelController.isSettingsRow(rowId)
+               || SampleSource.isRow(rowId)
+               || template(rowId) != null
+               || part != null && project.patterns().containsKey(part)
+               || mode != null && modes().contains(mode);
     }
 
     // ---- renaming what is selected ----
@@ -631,12 +852,14 @@ public class ShapeshifterDesignController
     // (design 47 §7.8, finding 5). A mode nothing uses yet is only the editor's, and is simply
     // called something else.
     private void renameMode(final String from, final String to) {
+        final ProjectHistory.State left = state();
         templatePanel.follow(TemplatePanelController.modeRowId(to));
         if (project != null && Modes.of(project).contains(from)) {
-            replace(Modes.rename(project, from, to));
+            replace(Modes.rename(project, from, to), left);
         } else {
-            forgetMode(from);
-            declareMode(to);
+            record(left, null);
+            declaredModes.remove(from);
+            declaredModes.add(to);
             refresh();
         }
     }
@@ -645,8 +868,9 @@ public class ShapeshifterDesignController
     // so does the selection.
     private void renamePart(final String from, final String to) {
         if (project != null) {
+            final ProjectHistory.State left = state();
             templatePanel.follow(Patterns.rowId(to));
-            replace(Patterns.rename(project, from, to));
+            replace(Patterns.rename(project, from, to), left);
         }
     }
 
@@ -665,13 +889,18 @@ public class ShapeshifterDesignController
     @Override
     public void declareMode(final String mode) {
         if (mode != null && !mode.isEmpty() && !modes().contains(mode)) {
+            // It is in the panel, so it is a step, though the project does not hold it yet
+            record(state(), null);
             declaredModes.add(mode);
         }
     }
 
     @Override
     public void forgetMode(final String mode) {
-        declaredModes.remove(mode);
+        if (declaredModes.contains(mode)) {
+            record(state(), null);
+            declaredModes.remove(mode);
+        }
     }
 
     /// Told when whether the project can be run changes.

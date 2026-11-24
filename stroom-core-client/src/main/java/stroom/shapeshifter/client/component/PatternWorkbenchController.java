@@ -124,6 +124,23 @@ public class PatternWorkbenchController extends Controller {
     }
 
 
+    /// Takes what has been typed into a regex and not committed yet.
+    public void flush() {
+        matchEditor.flush();
+    }
+
+    /// Takes the part's name, if it is being typed.
+    ///
+    /// @return False where it cannot be, which has been said: it is still open.
+    public boolean takePartName() {
+        return !view.getSubject().isOpen() || part == null || readOnly || takeName();
+    }
+
+    /// @return Whether the part's name is being typed, and is no longer what it was.
+    public boolean isTyped() {
+        return part != null && view.getSubject().isOpen() && !view.getSubject().getText().trim().equals(part);
+    }
+
     /// Closed: the match editor's drafts of the kinds not chosen go with the session.
     public void closed() {
         matchEditor.forget();
@@ -222,27 +239,28 @@ public class PatternWorkbenchController extends Controller {
     }
 
     // The part's name, taken: Enter in it, or its edit button pressed again. Every tree that
-    // names the part follows it.
-    private void takeName() {
+    // names the part follows it. Says whether it was.
+    private boolean takeName() {
         final Project project = host.getProject();
         final String from = part;
         if (!view.getSubject().isOpen() || from == null || readOnly || project == null) {
-            return;
+            return false;
         }
         final String name = view.getSubject().getText().trim();
         if (name.isEmpty()) {
             AlertEvent.fireWarn(this, "A pattern part needs a name", null);
-            return;
+            return false;
         }
         if (!name.equals(from) && project.patterns().containsKey(name)) {
             AlertEvent.fireWarn(this, "There is already a pattern part named '" + name + "'", null);
-            return;
+            return false;
         }
         view.getSubject().close();
         if (!name.equals(from)) {
             onRenamePart.accept(from, name);
         }
         view.getSubject().focus();
+        return true;
     }
 
     /// A part of the project's library as the subject (design 44 §3): a tree with no template around it.

@@ -20,8 +20,11 @@ import stroom.widget.component.client.Component;
 import stroom.widget.datagrid.client.PagerPanel;
 import stroom.widget.layout.client.SplitPane;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.ContentFocus;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Document;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -128,6 +131,22 @@ public class ShapeshifterDesign extends Component {
         dataPanes.fold(variablesPane, variablesFolded == null
                 ? !anything
                 : variablesFolded);
+    }
+
+    /// Keeps the keyboard in the tab, where the keys it answers to reach it: what it was on has
+    /// been drawn again, and it has fallen to the page.
+    public void keepFocus() {
+        final Element active = ContentFocus.activeElement();
+        if (active == null || active == Document.get().getBody()) {
+            layout.getElement().setTabIndex(-1);
+            layout.getElement().focus();
+        }
+    }
+
+    /// @return Whether the keyboard is in the tab.
+    public boolean hasFocus() {
+        final Element active = ContentFocus.activeElement();
+        return active != null && layout.getElement().isOrHasChild(active);
     }
 
     public void setKeyHandler(final KeyDownHandler handler) {
