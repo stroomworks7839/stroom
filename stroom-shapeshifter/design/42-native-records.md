@@ -5,6 +5,13 @@ we have to bolt a JSON parser to the front of our system? ds-rs originally had b
 native Avro, Parquet and protobuf." Ruled the same day, eleven questions in §8 (D57), two of
 them changing the design; nothing built.*
 
+*Redesigned 2026-11-24: a reader hands over the engine's own lists and maps, filled, and the
+engine's value classes do not change. The reason was cost: slices needed `TypedValue.List` and
+`Map` to become interfaces, which every configuration would have paid for at every reference
+(design 37 §7 measured the test), and no reader yet existed to say what they saved. Slices, the
+interfaces and the deeper projection are §10's, each with what would bring it back. §§2–9 read as
+redesigned; §8 keeps the rulings as they were made and says which are amended.*
+
 ## 1. Why, and why now
 
 Design 40 measured the engine parsing four formats against the libraries that own them.
@@ -85,55 +92,30 @@ records, and each such node is one match.
   are absent groups. Values are **typed as the reader read them** — an integer, a double, a
   boolean, UTF-8 bytes — the same kinds a `read` cast produces, so a body treats a native
   field and a cast label identically.
-- **A record is a structured slice: values materialised on access, not filled in advance.**
-  The engine already does this for text — a `ByteSlice` is the input array, an offset and a
-  length, decoded when something asks — and the structured equivalent is a map or list value
-  that holds the record's bytes, its format and, where needed, its schema, and decodes a
-  member only when a `get`, a capture or a dispatch asks for it, memoising what it decoded.
-  To a body it is a map; no node type appears and the interface does not change; but nothing
-  is pre-filled, and memory is offsets plus what was touched. Every reader has this as its own
-  primitive: a JSON member is found by scanning the object's bytes for its key and parsing
-  the value from that offset; a protobuf field by scanning tags, a sub-message a
-  length-delimited sub-range, a slice of a slice; an Avro field by decoding the ones before
-  it against the writer schema, forward-only and cheap; a Parquet row by its column readers,
-  which is how Parquet is meant to be read. It needs the input resident — which native
-  templates already require, whole-buffer — and the collections of design 35 to be
-  interfaces the readers implement beside the engine's own (`TypedValue.List` and `Map` are
-  final classes today; that is phase 0's first change). It makes the two-pass document
-  pattern (§2a) cheap: a list of records held for a later pass is a list of slices.
-  Concretely, one implementation per format per kind, living with its reader: `JsonMap` and
-  `JsonList` over Jackson, `AvroMap` and `AvroList` over a record's bytes and writer schema,
-  `ProtobufMap` and `ProtobufList` over a message range and its descriptor, Parquet's over
-  its column readers — with three rules that keep them values and not nodes. **The interface
-  is the engine's and it is small**: `get`, `size`, iteration, `contains`, what the accessors
-  and `Comparisons` already call, and a format's map adds nothing a body could see — if a
-  body could tell a `JsonMap` from an engine map, the body vocabulary has grown. **Slices of
-  slices**: a member that is itself structured is another slice over a sub-range, never a
-  copy, until a scalar is read — `ByteSlice.range`'s rule. **Read-only**: the engine's own
-  collections are mutable (design 35's `append`, `put`, `remove`, `clear` on declared
-  names); a format-backed slice is not, and the compiler, which already knows a declared
-  collection from a captured value, refuses a mutating op on a captured slice at compile
-  time — the same check `listTarget` makes today, with one more case.
-- **The projection is the eager option, derived by the compiler**, for readers that want
-  the demand up front — Parquet's columns, Avro's reader schema — or where the analysis
-  shows most of a record is read anyway. The reader is involved at exactly one place: where
-  a native template's `select` names the records. The projection is the configuration's
-  demand, which the compiler derives: the `field` captures and references in the
-  template's body; each `apply-templates` over a complex field, which pulls in the demand of
-  that mode's `record` templates beneath that field, recursively; a `get` with a literal key
-  on a captured map. That is a tree of names, computed at compile time by the walk
-  `ReferenceCheck` already makes over the sealed model, and handed to the reader, which
-  decodes those paths into map, list and scalar values and **skips the rest** — Jackson
-  skips a subtree without building it, protobuf skips a field by its tag, Avro projects with
-  a reader schema, Parquet reads only the columns named; projection is what these libraries
-  are built to do. A subtree the analysis cannot bound — a `get` with a computed key, a
-  `for-each` over a map's entries — stays lazy, so the fallback is correct and the common
-  case is cheap either way. Nothing below a record is a foreign *node*: what a lazy map
-  holds is bytes and a format, as a byte slice holds bytes and an encoding, and the library
-  is called only to decode a member. What the reader streams is *between* records, so the
-  root `select` sets the memory grain: `orders[*]` holds one order's slice at a time, and
-  selecting the root object holds the document's. `fields` on a template is therefore
-  derived, and an explicit list is an assertion of shape and group order, not a necessity.
+- **A record's fields are plain values, filled by the reader.** A scalar member is the value the
+  reader read. A structured member — an object, a nested record, an array, a repeated field — is
+  an engine `Map` or `List` (design 35), filled all the way down when the record is read. They are
+  the classes every configuration has today and nothing is added to them, so a body cannot tell a
+  map a reader made from one it built itself, and the test of a value's kind costs what it did.
+- **Only the fields a template uses are read.** They are the groups: the `field` captures and
+  references in its body, or its explicit `fields` list, known when it is compiled, one level
+  deep. The reader is handed that set of names and **skips every other member** without building
+  it — Jackson skips a subtree, protobuf a field by its tag, Parquet reads only the columns named
+  — so what a record costs is the members the template names. A structured member that is named
+  is read whole.
+- **What that gives up** is the large member of which little is wanted: it is decoded whole,
+  where a slice would have decoded what was touched. It is bounded by the record, and the root
+  `select` sets how large that is: `orders[*]` holds one order's values at a time, and selecting
+  the root object holds the document's.
+- **A reader's values are the match's, and are not changed.** Storing one copies it, as storing
+  any collection does (design 35 §11), so what a configuration declares and changes is its own.
+  The one way to reach a reader's own map would be a `put` or an `append` whose target is a
+  `field` reference, and the compiler refuses that: a mutation starts from a declared name. The
+  copy is paid only by capturing; a body that reads or dispatches a field without capturing it
+  makes none.
+- **What a value may be** is what an engine collection may hold. JSON's `null` is absence held,
+  as a failed capture's entry is; a key twice in an object keeps the last; a reader bounds how
+  deep it will go, and says so as it says any record it cannot read.
 - **Below the record, every level is format-free.** A record's complex children are values
   — an object or nested record a map, an array or repeated field a list — which a body walks
   with `for-each` and `get`, or dispatches: a body's `apply-templates` over a complex field
@@ -164,8 +146,7 @@ records, and each such node is one match.
   mode. The compile-time rule already decides it: a mode's templates are all byte, all
   `record`, or all native of one format, and that says what the dispatched value must be —
   bytes for byte and native modes, a collection for `record` modes — so JSON in XML in JSON
-  is three modes deep with no new vocabulary, each level's slices slices of the level
-  above. A reader hands out string fields and the canonical image as UTF-8, so an embedded
+  is three modes deep with no new vocabulary. A reader hands out string fields and the canonical image as UTF-8, so an embedded
   reader always opens UTF-8 and no template-level encoding is declared there.
 
 **What does not change.** Everything after the match: captures, declarations, scope,
@@ -233,8 +214,8 @@ Concretely:
 question about a value and a choice on the answer; here the question is a capture (or a
 `get` into a map or list child) and the choice is a guard or an `if` — two lines for one,
 nothing missing. Even a question about a descendant — "orders with an item over ten" — is a
-`for-each` over the child list setting a flag, since the record's subtree is reachable as
-the engine's own values — slices decoded as they are touched (§2). And scope flows downward for free: a parent template
+`for-each` over the child list setting a flag, since the record's subtree is the engine's own
+values (§2). And scope flows downward for free: a parent template
 captures, a child template dispatched from its body reads the capture, so "filter by the
 parent's value" is a guard on the child, and "the parent's id on every item" is a reference.
 That is the mechanism: *capture above, dispatch below, decide in the body.*
@@ -261,9 +242,8 @@ memory it uses a choice the configuration shows.
 
 ## 2b. Worked: what each template sees, and what a variable is
 
-No node type reaches a body. What the reader offers a template as its match is a structured
-slice — bytes, a format, a schema where there is one — and what captures bind and bodies
-read are the engine's existing typed values, decoded from it as they are asked for. One
+No node type reaches a body. What the reader gives a template as its match is its groups, and
+they are the engine's existing typed values. One
 document:
 
 ```json
@@ -281,8 +261,8 @@ document:
 |---|---|---|
 | `id` | number | `Integer(1)` — the kind a `zigzag` read gives |
 | `status` | string | `Bytes("open")` — the kind a regex group gives |
-| `customer` | object | a `Map` — design 35's kind, a `JsonMap` slice over the object's bytes, `name` decoded when read |
-| `items` | array | a `List` — a `JsonList` slice over the array's bytes, each element a `JsonMap` slice |
+| `customer` | object | a `Map` — design 35's, holding `name` and `tier` |
+| `items` | array | a `List` — design 35's, of a `Map` for each element |
 
 Captures bind them as they bind anything: `{"name": "orderId", "select": {"field": "id"}}`
 puts `Integer(1)` in a declared scalar; `{"name": "customer", "select": {"field":
@@ -294,8 +274,7 @@ with the accessor that exists. The body writes `<order id="1" customer="Ann">` a
 over its *bytes*; over a list or map value it dispatches them over the elements, each a map
 a `record` template matches. Which happens is decided at compile time by the mode: a mode's
 templates are all byte templates, or all `record` templates, and a mixed mode is refused.
-The reader was involved once, at template 1's boundary; template 2 never sees it, and the
-`JsonMap` it matches decodes `sku` and `qty` when the captures ask.
+The reader was involved once, at template 1's boundary; template 2 never sees it.
 
 **Template 2**, mode `item`, `{"record": {"fields": ["sku", "qty"]}}` — no format: it
 matches a map value, whichever reader or configuration made it. Each element of `items` is
@@ -305,9 +284,8 @@ parent's scope — design 35's resolution, the parent captured, the child reads 
 within its map (`payload.events[*]`), and for XML's heterogeneous children a mode holds one
 `record` template per child element name, chosen by name as §2a says.
 
-So the chain is: *the reader offers a record as a structured slice; captures and reads
-decode the members they name, and only those; the body decides and dispatches the next
-values — which are slices of the slice.* A
+So the chain is: *the reader reads the members the template names, and only those, into plain
+values; the body decides and dispatches the next values.* A
 variable is an integer, bytes, a double, a boolean, a map or a list — the kinds that exist
 — and that is the guarantee behind §6's first test: by the time a body runs there is nothing
 left that is not a value it already knows.
@@ -323,7 +301,7 @@ compile to group numbers with no run-time lookup. A `record` template's table is
 `fields` it names or the compiler derives.
 
 At run time a native template is a **source of records**, not a pattern to try at a cursor.
-`Level.match` for a native kind asks the reader for the record at the cursor:
+A native level asks the reader for the record at the cursor:
 
 ```
 RecordReader.open(data, from, to) → Records          once per dispatch region
@@ -331,13 +309,21 @@ Records.next(groups) → advance, or -1 at the end     once per record
 ```
 
 The reader fills the `groups[]` array it is given (as `partsMatch` fills its own — clear,
-don't allocate): the named scalar fields decoded, since naming them is the demand; a complex
-field as a slice; group 0 the record's image or absent (ruling 2). It returns the bytes it
+don't allocate), which is already an array of values: the fields named, plain values all the way
+down; group 0 the record's image or absent (ruling 2), and an image that has to be serialised
+made only where the template uses group 0, since the members it skipped would have to be read
+for it. It returns the bytes it
 consumed, or the position after the record when it knows it, or 0 when the format has no
 per-record position, in which case the level advances by the reader's word alone and
 locates records by count; instrumentation gets a record index where it cannot get a byte
 offset. A `record` template's match is the check that the dispatched value is a map (or
 that its route resolves to one) and the same fill from the map's members.
+
+**The byte path is not entered differently.** A mode is all byte, all `record` or all native of
+one format, and the compiler knows which, so the choice is made once: an `apply-templates` into a
+`record` mode compiles to an instruction of its own, and a native or `record` level runs a loop of
+its own. The byte loop, the byte dispatch and the references gain no test. Where a sealed switch
+must still name the new kinds, its arm is a cold one, as `Body`'s are.
 
 **Native templates run whole-buffer first** (`runWhole`), as the binary configurations do
 today, to establish the contract and the mechanism; streaming a framed format through the
@@ -363,7 +349,7 @@ implementation** (ruled 2026-09-17): `formats.json`, `formats.xml`, `formats.avr
 registration, `JsonFormat.register(FormatRegistry)` or a provider the registry discovers —
 and everything else is package-private: the reader over its library (Jackson's streaming
 parser, Woodstox, Avro's `DataFileReader` with a `GenericDatumReader`, `DynamicMessage` over
-a descriptor, Parquet's reader), the format's `Map` and `List` slices, its schema handling.
+a descriptor, Parquet's reader), its filling of maps and lists, its schema handling.
 The engine's seam interfaces are the only thing a package implements and the only thing
 outside it can name, so the boundary is the compiler's to enforce, not a reviewer's. The
 libraries are the module's, never the engine's: the engine's zero-dependency promise for
@@ -401,21 +387,22 @@ body written against the canonical image is the body written against the text. A
 - **Speed sold that is not there.** The Avro and protobuf rows are the control: a native
   reader for a format templates already parse must read slower or level, and the design must
   say so rather than let "native" imply "fast".
+- **Today's configurations paying for it.** A row of the existing suite that moves for a seam it
+  does not use is the design failing, and the step that moved it is undone rather than excused.
 - **Libraries in the engine.** One `import org.apache.avro` in the engine module is the
   boundary crossed.
 
 ## 7. Phases
 
-0. **The seam**: the collections as interfaces (`TypedValue.List`, `Map` and `Set` today
-   final classes) with the engine's implementations kept; `RecordReader`, `Records`,
+0. **The seam**: `RecordReader`, `Records`,
    `FormatRegistry`, `CompiledMatch.Native` and `CompiledMatch.Record`, the
    `MatchExpression.Native` family with its first variant and the format-free `Record` kind
-   in the model and JSON, the projection analysis in the compiler, `apply-templates` over a
+   in the model and JSON, the fields a template uses found by the compiler, `apply-templates` over a
    collection value, the `field` capture source and reference, `MatchCompiler` resolving a
    format or refusing it by name, `Level` running a native template whole-buffer. An engine-side test reader (records from a fixed list) so the
    engine's own tests cover the seam with no library. `EveryVariantTest` extended.
 1. **JSON** over Jackson, the first sub-package of the formats module: `select` paths,
-   objects as records or maps, arrays as the next level or lists, the `fields` projection,
+   objects as records or maps, arrays as the next level or lists, the fields not named skipped,
    the compact image as group 0. Fixtures for embedding both ways, since the feeds carry it constantly: JSON
    inside a log line's byte region, and XML inside a JSON string field opened as text —
    the second reading the XML through the byte path until phase 3 gives it a reader.
@@ -435,10 +422,9 @@ body written against the canonical image is the body written against the text. A
    configuration needs what the reader adds, so the phase has a reason.
 5. **Streaming** a framed native format through the window — owed, not on demand (ruling
    5): large inputs cannot be held whole. The contract is design 23's for text applied to a
-   record: the window holds a record's bytes until its templates are done with it, and a
-   structured slice never outlives its record unless the configuration copies it into a
-   declared collection — which is where the two-pass pattern's memory becomes the
-   author's, as §2a says.
+   record: the window holds a record's bytes until its templates are done with it. With plain values that is group 0's
+   image alone: what a reader filled holds nothing of the window, and what a configuration keeps
+   is a copy, which is where the two-pass pattern's memory becomes the author's, as §2a says.
 
 ## 8. Rulings — 2026-09-17
 
@@ -457,27 +443,47 @@ it, and are marked.
 | 7 | XML as a native format | **Yes — and with new fixtures beside the existing ones**, not a move: both mechanisms stay tested and the corpus grows. *Changed the design*: §7's phase 3 adds fixtures rather than moving `xml_to_json` and `win_sec_xml`. |
 | 8 | Selection by position only | **A route, never a query**; every decision about a value in a guard or a body; the `select` grammar fixed here and grown only by a ruling. |
 | 9 | One format-free `record` kind beneath the reader | **Yes**; format arms only where a reader opens bytes. |
-| 10 | Records as structured slices | **Yes**: a map or list over the record's bytes, decoding on access, memoised, read-only, the collections made interfaces; the per-format implementations hidden in their packages. |
-| 11 | The projection | **Kept as the eager option**, derived by the compiler, for readers that want demand up front and where most of a record is read. |
+| 10 | Records as structured slices | **Yes**: a map or list over the record's bytes, decoding on access, memoised, read-only, the collections made interfaces; the per-format implementations hidden in their packages. **Amended 2026-11-24: plain engine lists and maps, filled by the reader; the collections stay final classes. Slices are §10's.** |
+| 11 | The projection | **Kept as the eager option**, derived by the compiler, for readers that want demand up front and where most of a record is read. **Amended 2026-11-24: it is how every reader reads, one level deep — the fields a template uses. Deeper is §10's.** |
 
-## 9. Phase 0, in steps — proposed 2026-11-24, for ruling
+## 9. Phase 0, in steps — proposed 2026-11-24, redone the same day for plain values
 
-The owner's ruling of the same day: start, in the ruled order. Sized against the code as it is.
+Sized against the code as it is. The step that made the collections interfaces is gone, and with it
+the only one that changed a class today's configurations use; the step that derived a projection is
+gone too, what is left of it being 0c's. Nothing is built.
 
 | Step | What | Where it bears | Gate |
 |---|---|---|---|
-| 0a | `TypedValue.List`, `Map` and `Set` become interfaces, the engine's classes their only implementations | 55 uses in six engine files, `Body`, `CompiledRefs` and `VarRegistry` holding all but six | no golden moves; `PrintInlining` on the hot rows first, the full-suite point only if it shows a change (D57's cheap check) |
-| 0b | `RecordReader`, `Records`, `FormatRegistry`, `CompiledMatch.Native` and `Record`, run whole-buffer by `Level`, over a test reader of fixed records | engine only; nothing in the model can name it yet | engine tests |
-| 0c | `apply-templates` over a collection value, and the rule that a mode is all byte, all `record` or all one format | `Compiler`, `Body`, `Level` | engine tests; the byte path's rows unmoved |
-| 0d | The model: `MatchExpression.Native` with its JSON arm, `Record`, the `field` capture source and reference; JSON both ways; the compiler resolving a format or refusing it by name | the config module, which GWT compiles as well; `EveryVariantTest` | both modules' `check`, the GWT compile |
-| 0e | The projection, derived by `ReferenceCheck`'s walk | `ReferenceCheck` | engine tests |
-| 0f | The editor reads a native or `record` match, shows what it is and leaves it alone | `MatchKind`, `MatchLine`, `Templates` and the match editor, where a sealed switch has to say something | client tests, a story |
+| 0a | `RecordReader`, `Records`, `FormatRegistry`, `CompiledMatch.Native` and `Record`, run whole-buffer by a loop of their own in `Level`, over a test reader of fixed records | engine only; nothing in the model can name it yet | engine tests; no golden moves |
+| 0b | `apply-templates` over a collection value, as an instruction of its own, and the rule that a mode is all byte, all `record` or all one format | `Compiler`, `Body`, `Level` | engine tests; no golden moves |
+| 0c | The model: `MatchExpression.Native` with its JSON arm, `Record`, the `field` capture source and reference; JSON both ways; the fields a template uses; the compiler resolving a format or refusing it by name, and refusing a mutation of a `field` | the config module, which GWT compiles as well; `EveryVariantTest` | both modules' `check`, the GWT compile |
+| 0d | The editor reads a native or `record` match, shows what it is and leaves it alone | `MatchKind`, `MatchLine`, `Templates` and the match editor, where a sealed switch has to say something | client tests, a story |
 
-0a is first because it is the only step that touches a path today's configurations run, so its cost
-is read on its own. 0d follows 0c so that nothing can be authored that cannot be run.
+0c follows 0b so that nothing can be authored that cannot be run.
 
-| # | Question | Recommended |
+**What guards the existing rows.** 0a and 0b each add arms to a switch on the matching or dispatch
+path, so each is checked with `PrintInlining` and the bytecode size of the methods it touched
+against their inlining limits. No value class changes, so there is no type test for that check to
+miss. A full point is taken when the phase is done, and against its baseline a row outside its
+interval is a step to undo.
+
+| # | Question | Ruling or recommendation |
 |---|---|---|
-| S1 | What does the editor do with a native match before its form exists (43's 42.x)? | **Show it and not edit it**, the Source tab being where it is written. A form designed before a reader exists would be designed against nothing. |
-| S2 | One commit a step, or the phase as one? | **One a step**, each gated, so a benchmark that moves has one change to blame. |
-| S3 | Is 0a benchmarked if `PrintInlining` shows no change? | **No**: D57. A full point is taken once, when the phase is done. |
+| S1 | What does the editor do with a native match before its form exists (43's 42.x)? | **Show it and not edit it**, the Source tab being where it is written. A form designed before a reader exists would be designed against nothing. Ruled 2026-11-24. |
+| S2 | One commit a step, or the phase as one? | **One a step**, each gated, so a benchmark that moves has one change to blame. Ruled 2026-11-24. |
+| S3 | Is a step benchmarked if `PrintInlining` shows no change? | **No**: D57's cheap check, and a full point once, when the phase is done. Ruled 2026-11-24. |
+
+## 10. Possible future work
+
+None of it is planned, and nothing in phases 0–5 waits for it. Each has a reading that would bring
+it back, taken from a reader that exists.
+
+| What | What it would save | What it would cost | What would bring it back |
+|---|---|---|---|
+| **Structured slices**: a map or list over the record's bytes, a member decoded when it is asked for and kept | time and memory on a named member that is large and little used | an implementation for each format and kind, read-only rules, and the next row | phase 1's or 2's profile showing decode of members nothing read |
+| **The collections opened** to other implementations, as interfaces or as abstract classes | nothing itself: slices need it | a type test at every reference, on every configuration. Against an interface it is the slower one (design 37 §7); against an abstract class it should be near a final class's, and is not measured | slices, and only with the type tests and the suite's rows read for both shapes first |
+| **The deeper projection**: the demand followed through `get` with a literal key and into the `record` modes beneath a field | reading the parts of a named member that are not wanted | a walk over the whole mode graph, and a tree of names for every reader to honour | a record whose named members are wide and whose templates use little of them — Parquet's nested columns are the likely first |
+| **Taking a reader's collection rather than copying it** when a capture stores it whole (`VarRegistry.adopt` is the move) | one deep copy for each captured structure | the proof that nothing else reads the group afterwards | the copy showing in a profile |
+| **A record's maps reused** for the next record | allocation | knowing that nothing kept them, which storing by copy already makes nearly true | allocation showing in a profile |
+
+Streaming is not here. It stays phase 5, owed by ruling 5.

@@ -1561,6 +1561,11 @@ mode deciding what a dispatched value must be.
 design 35 collections become interfaces; the `field` capture source returns; the `select`
 grammar is fixed by design 42 and grows only by a ruling.
 
+**Amended 2026-11-24:** a reader fills the engine's own lists and maps with the fields a template
+uses; the collections stay final classes, so the configurations that use no reader pay nothing for
+one. Structured slices, the collections as interfaces and the deeper projection are possible future
+work (design 42 §10). Nothing had been built.
+
 ---
 
 ## D58 — The configuration model is one module, shared with the client
